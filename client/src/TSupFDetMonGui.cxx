@@ -8,6 +8,7 @@
 #include <TGComboBox.h>
 #include <TGFrame.h>
 #include <TGLabel.h>
+#include <TGClient.h>
 #include <TGNumberEntry.h>
 #include <TGTextEntry.h>
 #include <TH1D.h>
@@ -164,6 +165,13 @@ void TSupFDetMonGui::SetConnectedUi(bool connected)
     fClearButton->SetEnabled(connected);
     fClearAllButton->SetEnabled(connected);
     fStatusLabel->SetText(connected ? "Connected" : "Disconnected");
+
+    // Make the connection state immediately visible: green when connected,
+    // red when disconnected.
+    Pixel_t statusColor = 0;
+    gClient->GetColorByName(connected ? "green" : "red", statusColor);
+    fStatusLabel->SetTextColor(statusColor);
+
     if (!connected && fUpdateTimer) fUpdateTimer->TurnOff();
     Layout();
 }
