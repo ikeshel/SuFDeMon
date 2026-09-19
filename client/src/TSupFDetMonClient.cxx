@@ -119,6 +119,19 @@ bool TSupFDetMonClient::ClearAll()
         && ReceiveText() == "OK";
 }
 
+bool TSupFDetMonClient::ShutdownServer()
+{
+    if (!SendCommand(std::string(SupFDetMon::Protocol::kShutdown)))
+        return false;
+
+    const bool acknowledged = ReceiveText() == "BYE";
+    if (fSocket) {
+        fSocket->Close();
+        fSocket.reset();
+    }
+    return acknowledged;
+}
+
 bool TSupFDetMonClient::DrawHistogram(const std::string& name)
 {
     auto histogram = GetHistogram(name);
