@@ -144,6 +144,10 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     fCloseServerButton->Connect("Clicked()", "TSupFDetMonGui", this, "CloseServer()");
     fCloseAllButton->Connect("Clicked()", "TSupFDetMonGui", this, "CloseAll()");
     fAutoUpdateCheck->Connect("Toggled(Bool_t)", "TSupFDetMonGui", this, "AutoUpdateToggled()");
+    // ROOT's built-in RealTwo arrows step by 0.01.  Route arrow presses to
+    // the GUI and apply our desired 0.2 s step explicitly.
+    fUpdateIntervalEntry->SetButtonToNum(kTRUE);
+    fUpdateIntervalEntry->Connect("ValueChanged(Long_t)", "TSupFDetMonGui", this, "UpdateIntervalButton(Long_t)");
     fUpdateIntervalEntry->Connect("ValueSet(Long_t)", "TSupFDetMonGui", this, "UpdateIntervalChanged()");
     fUpdateTimer->Connect("Timeout()", "TSupFDetMonGui", this, "AutoUpdate()");
 
@@ -285,6 +289,20 @@ void TSupFDetMonGui::AutoUpdateToggled()
 
 void TSupFDetMonGui::UpdateIntervalChanged()
 {
+    UpdateTimerState();
+}
+
+void TSupFDetMonGui::UpdateIntervalButton(Long_t value)
+{
+    // With SetButtonToNum(kTRUE), ROOT reports +1/-1 for the arrow buttons
+    // instead of changing the numeric field itself.
+    if (!fUpdateIntervalEntry || value == 0)
+        return;
+
+    const double current = fUpdateIntervalEntry->GetNumber();
+    const double stepped = std::max(0.2, current + (value > 0 ? 0.2 : -0.2));
+    const double rounded = std::round(stepped * 5.0) / 5.0;
+    fUpdateIntervalEntry->SetNumber(rounded, kFALSE);
     UpdateTimerState();
 }
 
