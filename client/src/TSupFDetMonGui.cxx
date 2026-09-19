@@ -26,27 +26,38 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     SetCleanup(kDeepCleanup);
     SetWindowName("SupFDetMon Controls");
 
-    // Connection controls
-    auto* connection = new TGGroupFrame(this, "Connection", kHorizontalFrame);
-    // Do not let this group frame stretch vertically with the main window.
-    connection->SetLayoutManager(new TGHorizontalLayout(connection));
-    fHostEntry = new TGTextEntry(connection, host.c_str());
+    // Connection controls. Put the widgets in a vertical wrapper so the
+    // complete Host/Port/button/status row is centered inside the group box.
+    auto* connection = new TGGroupFrame(this, "Connection", kVerticalFrame);
+    auto* connectionRow = new TGHorizontalFrame(connection);
+
+    fHostEntry = new TGTextEntry(connectionRow, host.c_str());
     fHostEntry->Resize(180, 28);
-    fPortEntry = new TGNumberEntry(connection, port, 6, -1, TGNumberFormat::kNESInteger,
+    fPortEntry = new TGNumberEntry(connectionRow, port, 6, -1, TGNumberFormat::kNESInteger,
                                    TGNumberFormat::kNEANonNegative,
                                    TGNumberFormat::kNELLimitMinMax, 1, 65535);
-    fConnectButton = new TGTextButton(connection, "&Connect");
-    fDisconnectButton = new TGTextButton(connection, "&Disconnect");
-    fStatusLabel = new TGLabel(connection, "Disconnected");
+    fConnectButton = new TGTextButton(connectionRow, "&Connect");
+    fDisconnectButton = new TGTextButton(connectionRow, "&Disconnect");
+    fStatusLabel = new TGLabel(connectionRow, "Disconnected");
 
-    connection->AddFrame(new TGLabel(connection, "Host:"), new TGLayoutHints(kLHintsCenterY, 5, 4, 5, 5));
-    connection->AddFrame(fHostEntry, new TGLayoutHints(kLHintsCenterY, 0, 5, 5, 5));
-    connection->AddFrame(new TGLabel(connection, "Port:"), new TGLayoutHints(kLHintsCenterY, 0, 4, 5, 5));
-    connection->AddFrame(fPortEntry, new TGLayoutHints(kLHintsCenterY, 0, 15, 5, 5));
-    connection->AddFrame(fConnectButton, new TGLayoutHints(kLHintsCenterY, 0, 8, 5, 5));
-    connection->AddFrame(fDisconnectButton, new TGLayoutHints(kLHintsCenterY, 0, 20, 5, 5));
-    connection->AddFrame(fStatusLabel, new TGLayoutHints(kLHintsCenterY, 0, 5, 5, 5));
-    AddFrame(connection, new TGLayoutHints(kLHintsExpandX | kLHintsTop, 8, 8, 8, 4));
+    connectionRow->AddFrame(new TGLabel(connectionRow, "Host:"),
+                            new TGLayoutHints(kLHintsCenterY, 5, 4, 0, 0));
+    connectionRow->AddFrame(fHostEntry,
+                            new TGLayoutHints(kLHintsCenterY, 0, 5, 0, 0));
+    connectionRow->AddFrame(new TGLabel(connectionRow, "Port:"),
+                            new TGLayoutHints(kLHintsCenterY, 0, 4, 0, 0));
+    connectionRow->AddFrame(fPortEntry,
+                            new TGLayoutHints(kLHintsCenterY, 0, 15, 0, 0));
+    connectionRow->AddFrame(fConnectButton,
+                            new TGLayoutHints(kLHintsCenterY, 0, 8, 0, 0));
+    connectionRow->AddFrame(fDisconnectButton,
+                            new TGLayoutHints(kLHintsCenterY, 0, 20, 0, 0));
+    connectionRow->AddFrame(fStatusLabel,
+                            new TGLayoutHints(kLHintsCenterY, 0, 5, 0, 0));
+
+    connection->AddFrame(connectionRow,
+                         new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 0, 0, 12, 12));
+    AddFrame(connection, new TGLayoutHints(kLHintsExpandX, 8, 8, 8, 4));
 
     // Histogram selection controls
     auto* controls = new TGGroupFrame(this, "Select Histogram", kVerticalFrame);
