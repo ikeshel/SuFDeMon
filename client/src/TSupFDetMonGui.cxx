@@ -4,6 +4,7 @@
 #include "TSupFDetMonClient.h"
 
 #include <TCanvas.h>
+#include <TApplication.h>
 #include <TGButton.h>
 #include <TGComboBox.h>
 #include <TGFrame.h>
@@ -107,7 +108,16 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     controls->AddFrame(fDrawButton, new TGLayoutHints(kLHintsExpandX, 2, 2, 8, 4));
     controls->AddFrame(fClearButton, new TGLayoutHints(kLHintsExpandX, 2, 2, 4, 4));
     controls->AddFrame(fClearAllButton, new TGLayoutHints(kLHintsExpandX, 2, 2, 4, 8));
-    AddFrame(controls, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY, 8, 8, 4, 8));
+    AddFrame(controls, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY, 8, 8, 4, 4));
+
+    auto* processControls = new TGGroupFrame(this, "Process Control", kHorizontalFrame);
+    fCloseClientButton = new TGTextButton(processControls, "Close client");
+    fCloseServerButton = new TGTextButton(processControls, "Close server");
+    fCloseAllButton = new TGTextButton(processControls, "Close All");
+    processControls->AddFrame(fCloseClientButton, new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 4, 8, 8));
+    processControls->AddFrame(fCloseServerButton, new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 4, 8, 8));
+    processControls->AddFrame(fCloseAllButton, new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 4, 8, 8));
+    AddFrame(processControls, new TGLayoutHints(kLHintsExpandX, 8, 8, 4, 8));
 
     // TTimer emits Timeout() in the ROOT event loop. It is single-shot here and
     // restarted after every refresh, so changing the interval takes effect cleanly.
@@ -120,6 +130,9 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     fDrawButton->Connect("Clicked()", "TSupFDetMonGui", this, "DrawSelected()");
     fClearButton->Connect("Clicked()", "TSupFDetMonGui", this, "ClearSelected()");
     fClearAllButton->Connect("Clicked()", "TSupFDetMonGui", this, "ClearAllHistograms()");
+    fCloseClientButton->Connect("Clicked()", "TSupFDetMonGui", this, "CloseClient()");
+    fCloseServerButton->Connect("Clicked()", "TSupFDetMonGui", this, "CloseServer()");
+    fCloseAllButton->Connect("Clicked()", "TSupFDetMonGui", this, "CloseAll()");
     fAutoUpdateCheck->Connect("Toggled(Bool_t)", "TSupFDetMonGui", this, "AutoUpdateToggled()");
     fUpdateIntervalEntry->Connect("ValueSet(Long_t)", "TSupFDetMonGui", this, "UpdateIntervalChanged()");
     fUpdateTimer->Connect("Timeout()", "TSupFDetMonGui", this, "AutoUpdate()");
@@ -276,6 +289,40 @@ void TSupFDetMonGui::AutoUpdate()
 
     FetchAndDraw();
     UpdateTimerState();
+}
+
+void TSupFDetMonGui::CloseClient()
+{
+    if (fUpdateTimer) fUpdateTimer->TurnOff();
+    DisconnectServer();
+    if (fCanvas) {
+        fCanvas->Close();
+        fCanvas = nullptr;
+    }
+    DeleteWindow();
+    if (gApplication) gApplication->Terminate(0);
+}
+
+void TSupFDetMonGui::CloseServer()
+{
+    if (!fClient || !fClient->IsConnected()) return;
+    if (fUpdateTimer) fUpdateTimer->TurnOff();
+    fClient->ShutdownServer();
+    fClient.reset();
+    SetConnectedUi(false);
+}
+
+void TSupFDetMonGui::CloseAll()
+{
+    if (fUpdateTimer) fUpdateTimer->TurnOff();
+    if (fClient && fClient->IsConnected()) fClient->ShutdownServer();
+    fClient.reset();
+    if (fCanvas) {
+        fCanvas->Close();
+        fCanvas = nullptr;
+    }
+    DeleteWindow();
+    if (gApplication) gApplication->Terminate(0);
 }
 
 void TSupFDetMonGui::CloseWindow()
