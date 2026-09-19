@@ -141,8 +141,10 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     SetConnectedUi(false);
 
     MapSubwindows();
-    // Size the control window from the complete layout, including Process Control.
-    Resize(GetDefaultWidth(), GetDefaultHeight());
+    // Size after every group has been mapped so ROOT includes Connection,
+    // Select Histogram (including Draw/Clear/Clear All), and Process Control.
+    const TGDimension defaultSize = GetDefaultSize();
+    Resize(defaultSize.fWidth, defaultSize.fHeight);
     MapWindow();
 
     // Try the host/port supplied on the command line immediately at startup.
