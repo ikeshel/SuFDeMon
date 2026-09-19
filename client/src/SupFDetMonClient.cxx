@@ -2,6 +2,8 @@
 
 #include "SupFDetMonProtocol.h"
 
+#include <TH1D.h>
+
 #include <iostream>
 #include <sstream>
 #include <string>
