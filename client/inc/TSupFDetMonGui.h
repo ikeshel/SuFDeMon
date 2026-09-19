@@ -33,6 +33,9 @@ public:
     void AutoUpdateToggled();
     void UpdateIntervalChanged();
     void AutoUpdate();
+    void CloseClient();
+    void CloseServer();
+    void CloseAll();
     void CloseWindow() override;
 
     TSupFDetMonClient* GetClient() const { return fClient.get(); }
