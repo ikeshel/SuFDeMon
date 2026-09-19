@@ -5,7 +5,7 @@
 
 namespace SupFDetMon::Protocol {
 
-inline constexpr int kDefaultPort = 9090;
+inline constexpr int kDefaultPort = 10001;
 
 inline constexpr std::string_view kPing = "PING";
 inline constexpr std::string_view kList = "LIST";
