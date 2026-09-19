@@ -108,7 +108,7 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     controls->AddFrame(fDrawButton, new TGLayoutHints(kLHintsExpandX, 2, 2, 8, 4));
     controls->AddFrame(fClearButton, new TGLayoutHints(kLHintsExpandX, 2, 2, 4, 4));
     controls->AddFrame(fClearAllButton, new TGLayoutHints(kLHintsExpandX, 2, 2, 4, 8));
-    AddFrame(controls, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY, 8, 8, 4, 4));
+    // Keep the histogram group at its natural height so it cannot consume\n    // the vertical space needed by the Process Control group below it.\n    AddFrame(controls, new TGLayoutHints(kLHintsExpandX | kLHintsTop, 8, 8, 4, 4));
 
     auto* processControls = new TGGroupFrame(this, "Process Control", kHorizontalFrame);
     fCloseClientButton = new TGTextButton(processControls, "Close client");
