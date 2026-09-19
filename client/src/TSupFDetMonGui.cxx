@@ -144,11 +144,9 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     fCloseServerButton->Connect("Clicked()", "TSupFDetMonGui", this, "CloseServer()");
     fCloseAllButton->Connect("Clicked()", "TSupFDetMonGui", this, "CloseAll()");
     fAutoUpdateCheck->Connect("Toggled(Bool_t)", "TSupFDetMonGui", this, "AutoUpdateToggled()");
-    // ROOT's kNESRealTwo arrows normally step by 0.01.  Disable their
-    // built-in numeric action and handle each arrow click explicitly as 0.2 s.
-    fUpdateIntervalEntry->SetButtonToNum(kTRUE);
-    fUpdateIntervalEntry->GetButtonUp()->Connect("Clicked()", "TSupFDetMonGui", this, "IncreaseUpdateInterval()");
-    fUpdateIntervalEntry->GetButtonDown()->Connect("Clicked()", "TSupFDetMonGui", this, "DecreaseUpdateInterval()");
+    // TGNumberEntry's RealTwo arrows intrinsically change by 0.01.  Let that
+    // happen, then quantize every resulting value onto our 0.2 s grid.
+    fUpdateIntervalEntry->Connect("ValueChanged(Long_t)", "TSupFDetMonGui", this, "UpdateIntervalChanged()");
     fUpdateIntervalEntry->Connect("ValueSet(Long_t)", "TSupFDetMonGui", this, "UpdateIntervalChanged()");
     fUpdateTimer->Connect("Timeout()", "TSupFDetMonGui", this, "AutoUpdate()");
 
@@ -290,6 +288,27 @@ void TSupFDetMonGui::AutoUpdateToggled()
 
 void TSupFDetMonGui::UpdateIntervalChanged()
 {
+    if (!fUpdateIntervalEntry) return;
+
+    // Snap any GUI change to exact 0.2 s increments.  For an arrow click ROOT
+    // first produces e.g. 1.01/0.99; ceil/floor converts that to 1.2/0.8.
+    const double raw = fUpdateIntervalEntry->GetNumber();
+    double snapped = 0.2;
+    if (raw >= 0.2) {
+        const double scaled = raw * 5.0;
+        const double nearest = std::round(scaled);
+        if (std::abs(scaled - nearest) < 1e-6)
+            snapped = nearest / 5.0;
+        else if (raw > 1.0 && raw < 1.2)
+            snapped = 1.2;
+        else if (raw < 1.0 && raw > 0.8)
+            snapped = 0.8;
+        else
+            snapped = std::round(scaled) / 5.0;
+    }
+
+    snapped = std::max(0.2, snapped);
+    fUpdateIntervalEntry->SetNumber(snapped, kFALSE);
     UpdateTimerState();
 }
 
