@@ -10,9 +10,11 @@ class TGTextEntry;
 class TGNumberEntry;
 class TGComboBox;
 class TGTextButton;
+class TGCheckButton;
 class TGLabel;
 class TCanvas;
 class TH1D;
+class TTimer;
 class TSupFDetMonClient;
 
 class TSupFDetMonGui : public TGMainFrame
@@ -28,6 +30,9 @@ public:
     void DrawSelected();
     void ClearSelected();
     void ClearAllHistograms();
+    void AutoUpdateToggled();
+    void UpdateIntervalChanged();
+    void AutoUpdate();
     void CloseWindow() override;
 
     TSupFDetMonClient* GetClient() const { return fClient.get(); }
@@ -37,6 +42,8 @@ private:
     std::string SelectedHistogramName() const;
     void UpdateHistogramName();
     void SetConnectedUi(bool connected);
+    void UpdateTimerState();
+    void FetchAndDraw();
 
     TGTextEntry* fHostEntry = nullptr;
     TGNumberEntry* fPortEntry = nullptr;
@@ -48,11 +55,15 @@ private:
     TGTextButton* fDrawButton = nullptr;
     TGTextButton* fClearButton = nullptr;
     TGTextButton* fClearAllButton = nullptr;
+    TGCheckButton* fAutoUpdateCheck = nullptr;
+    TGNumberEntry* fUpdateIntervalEntry = nullptr;
     TGLabel* fStatusLabel = nullptr;
 
     std::unique_ptr<TSupFDetMonClient> fClient;
     std::unique_ptr<TH1D> fHistogram;
     TCanvas* fCanvas = nullptr;
+    TTimer* fUpdateTimer = nullptr;
+    bool fHasDrawnHistogram = false;
 
     ClassDefOverride(TSupFDetMonGui, 0);
 };
