@@ -1,47 +1,61 @@
 #include "TSupFDetMonClient.h"
-
 #include "SupFDetMonProtocol.h"
 
-#include <TApplication.h>
 #include <TH1D.h>
+#include <TInterpreter.h>
+#include <TRint.h>
 
 #include <iostream>
-#include <sstream>
+#include <memory>
 #include <string>
 
 namespace {
-
-void PrintHelp()
-{
-    std::cout
-        << "Commands:\n"
-        << "  ping                    Test the server connection\n"
-        << "  list                    List available histograms\n"
-        << "  get <name>              Fetch histogram and print statistics\n"
-        << "  draw <name>             Fetch and draw histogram\n"
-        << "  clear <name>            Clear one server histogram\n"
-        << "  clear all               Clear all server histograms\n"
-        << "  help                    Show this help\n"
-        << "  quit                    Disconnect and exit\n";
+std::unique_ptr<TSupFDetMonClient> gClient;
+std::unique_ptr<TH1D> gHistogram;
 }
 
-} // namespace
+bool SupFDetMonPing()
+{
+    return gClient && gClient->Ping();
+}
+
+void SupFDetMonList()
+{
+    if (gClient) std::cout << gClient->ListHistograms();
+}
+
+TH1D* SupFDetMonGet(const char* name)
+{
+    if (!gClient) return nullptr;
+    gHistogram = gClient->GetHistogram(name);
+    return gHistogram.get();
+}
+
+TH1D* SupFDetMonDraw(const char* name)
+{
+    TH1D* histogram = SupFDetMonGet(name);
+    if (histogram) histogram->Draw();
+    return histogram;
+}
+
+bool SupFDetMonClear(const char* name)
+{
+    return gClient && gClient->ClearHistogram(name);
+}
+
+bool SupFDetMonClearAll()
+{
+    return gClient && gClient->ClearAll();
+}
 
 int main(int argc, char** argv)
 {
-    TApplication application("SupFDetMonClient", &argc, argv);
-
     std::string host = "localhost";
     int port = SupFDetMon::Protocol::kDefaultPort;
 
-    if (argc > 3) {
-        std::cerr << "Usage: " << argv[0] << " [host] [port]" << std::endl;
-        return 1;
-    }
-
-    if (argc >= 2) host = argv[1];
-
-    if (argc == 3) {
+    // Consume our host/port arguments before TRint sees its own ROOT options.
+    if (argc >= 2 && argv[1][0] != '-') host = argv[1];
+    if (argc >= 3 && argv[2][0] != '-') {
         try {
             port = std::stoi(argv[2]);
         } catch (...) {
@@ -50,58 +64,37 @@ int main(int argc, char** argv)
         }
     }
 
-    TSupFDetMonClient client(host, port);
-    if (!client.Connect()) return 1;
+    int rootArgc = 1;
+    char* rootArgv[] = {argv[0], nullptr};
+    TRint application("SupFDetMonClient", &rootArgc, rootArgv);
 
-    std::cout << "Connected to " << host << ':' << port << std::endl;
-    PrintHelp();
+    gClient = std::make_unique<TSupFDetMonClient>(host, port);
+    if (!gClient->Connect()) return 1;
 
-    std::string line;
-    while (true) {
-        std::cout << "SupFDetMon> " << std::flush;
-        if (!std::getline(std::cin, line)) break;
-        if (line.empty()) continue;
-        if (line == "quit" || line == "exit") break;
-        if (line == "help") { PrintHelp(); continue; }
-        if (line == "ping") {
-            std::cout << (client.Ping() ? "PONG" : "Ping failed") << std::endl;
-            continue;
-        }
-        if (line == "list") {
-            std::cout << client.ListHistograms();
-            continue;
-        }
-        if (line == "clear all") {
-            std::cout << (client.ClearAll() ? "OK" : "Clear failed") << std::endl;
-            continue;
-        }
+    gInterpreter->Declare(R"(
+        class TH1D;
+        bool SupFDetMonPing();
+        void SupFDetMonList();
+        TH1D* SupFDetMonGet(const char*);
+        TH1D* SupFDetMonDraw(const char*);
+        bool SupFDetMonClear(const char*);
+        bool SupFDetMonClearAll();
+    )");
 
-        std::istringstream input(line);
-        std::string command, name;
-        input >> command >> name;
+    std::cout << "\nSupFDetMon connected to " << host << ':' << port << "\n"
+              << "ROOT prompt is active. Normal ROOT/C++ commands work here.\n"
+              << "SupFDetMon helpers:\n"
+              << "  SupFDetMonPing()\n"
+              << "  SupFDetMonList()\n"
+              << "  TH1D* h = SupFDetMonGet(\"TH1D_MUSIC_ADC_FC1_ADC0\")\n"
+              << "  SupFDetMonDraw(\"TH1D_MUSIC_ADC_FC1_ADC0\")\n"
+              << "  SupFDetMonClear(\"TH1D_MUSIC_ADC_FC1_ADC0\")\n"
+              << "  SupFDetMonClearAll()\n\n";
 
-        if (command == "get" && !name.empty()) {
-            auto histogram = client.GetHistogram(name);
-            if (histogram) {
-                std::cout << histogram->GetName()
-                          << ": entries=" << histogram->GetEntries()
-                          << ", mean=" << histogram->GetMean()
-                          << ", rms=" << histogram->GetRMS() << std::endl;
-            }
-            continue;
-        }
-        if (command == "draw" && !name.empty()) {
-            client.DrawHistogram(name);
-            continue;
-        }
-        if (command == "clear" && !name.empty()) {
-            std::cout << (client.ClearHistogram(name) ? "OK" : "Clear failed") << std::endl;
-            continue;
-        }
+    application.Run();
 
-        std::cout << "Unknown command. Type 'help'." << std::endl;
-    }
-
-    client.Disconnect();
+    gClient->Disconnect();
+    gHistogram.reset();
+    gClient.reset();
     return 0;
 }
