@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-find_package(ROOT REQUIRED COMPONENTS Core RIO Net Hist Graf Gpad)
+find_package(ROOT REQUIRED COMPONENTS Core RIO Net Hist Graf Gpad Rint)
 
 add_subdirectory(common)
 add_subdirectory(server)
