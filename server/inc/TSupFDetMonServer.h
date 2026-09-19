@@ -4,6 +4,8 @@
 #include <array>
 #include <memory>
 #include <string>
+#include <atomic>
+#include <thread>
 
 class TH1D;
 class TRandom3;
@@ -30,6 +32,7 @@ private:
 
     void CreateHistograms();
     void FillHistograms();
+    void FillLoop();
     bool HandleClient(TSocket& socket);
     bool HandleCommand(TSocket& socket, const std::string& command);
 
@@ -40,6 +43,8 @@ private:
     HistogramArray fMusicAdc;
     std::unique_ptr<TRandom3> fRandom;
     std::unique_ptr<TServerSocket> fServerSocket;
+    std::atomic<bool> fFillRunning{false};
+    std::thread fFillThread;
 };
 
 #endif
