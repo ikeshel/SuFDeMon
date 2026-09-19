@@ -11,7 +11,7 @@ class TGNumberEntry;
 class TGComboBox;
 class TGTextButton;
 class TGLabel;
-class TRootEmbeddedCanvas;
+class TCanvas;
 class TH1D;
 class TSupFDetMonClient;
 
@@ -30,6 +30,9 @@ public:
     void ClearAllHistograms();
     void CloseWindow() override;
 
+    TSupFDetMonClient* GetClient() const { return fClient.get(); }
+    TH1D* GetHistogram() const { return fHistogram.get(); }
+
 private:
     std::string SelectedHistogramName() const;
     void UpdateHistogramName();
@@ -46,10 +49,10 @@ private:
     TGTextButton* fClearButton = nullptr;
     TGTextButton* fClearAllButton = nullptr;
     TGLabel* fStatusLabel = nullptr;
-    TRootEmbeddedCanvas* fCanvas = nullptr;
 
     std::unique_ptr<TSupFDetMonClient> fClient;
     std::unique_ptr<TH1D> fHistogram;
+    TCanvas* fCanvas = nullptr;
 
     ClassDefOverride(TSupFDetMonGui, 0);
 };
