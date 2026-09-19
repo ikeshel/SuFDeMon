@@ -156,6 +156,11 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     // If the server is unavailable, the GUI remains open and the user can
     // retry later with the Connect button.
     ConnectServer();
+
+    // Start with the currently selected histogram already drawn.  With
+    // Auto update enabled by default, this also starts periodic refreshes.
+    if (fClient && fClient->IsConnected())
+        DrawSelected();
 }
 
 TSupFDetMonGui::~TSupFDetMonGui()
