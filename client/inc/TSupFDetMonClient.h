@@ -24,7 +24,7 @@ public:
     std::string ListHistograms();
     std::unique_ptr<TH1D> GetHistogram(const std::string& name);
     bool ClearHistogram(const std::string& name);
-    bool ClearAll();
+    bool ClearAll();\n    bool ShutdownServer();
     bool DrawHistogram(const std::string& name);
 
 private:
