@@ -1,0 +1,56 @@
+#ifndef TSUPFDETMONGUI_H
+#define TSUPFDETMONGUI_H
+
+#include <TGFrame.h>
+
+#include <memory>
+#include <string>
+
+class TGTextEntry;
+class TGNumberEntry;
+class TGComboBox;
+class TGTextButton;
+class TGLabel;
+class TRootEmbeddedCanvas;
+class TH1D;
+class TSupFDetMonClient;
+
+class TSupFDetMonGui : public TGMainFrame
+{
+public:
+    TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t height);
+    ~TSupFDetMonGui() override;
+
+    void ConnectServer();
+    void DisconnectServer();
+    void SelectionChanged(Int_t id);
+    void DrawSelected();
+    void ClearSelected();
+    void ClearAllHistograms();
+    void CloseWindow() override;
+
+private:
+    std::string SelectedHistogramName() const;
+    void UpdateHistogramName();
+    void SetConnectedUi(bool connected);
+
+    TGTextEntry* fHostEntry = nullptr;
+    TGNumberEntry* fPortEntry = nullptr;
+    TGTextButton* fConnectButton = nullptr;
+    TGTextButton* fDisconnectButton = nullptr;
+    TGLabel* fStatusLabel = nullptr;
+
+    TGComboBox* fFieldCageCombo = nullptr;
+    TGComboBox* fAdcCombo = nullptr;
+    TGTextEntry* fHistogramEntry = nullptr;
+    TGTextButton* fDrawButton = nullptr;
+    TGTextButton* fClearButton = nullptr;
+    TGTextButton* fClearAllButton = nullptr;
+
+    TRootEmbeddedCanvas* fCanvas = nullptr;
+
+    std::unique_ptr<TSupFDetMonClient> fClient;
+    std::unique_ptr<TH1D> fHistogram;
+};
+
+#endif
