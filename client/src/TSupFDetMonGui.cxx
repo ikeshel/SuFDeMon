@@ -17,7 +17,10 @@
 #include <iostream>
 #include <string>
 
-TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t height)
+ClassImp(TSupFDetMonGui)
+
+TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t height,
+                                   std::string host, int port)
     : TGMainFrame(parent, width, height)
 {
     SetCleanup(kDeepCleanup);
