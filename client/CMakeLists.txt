@@ -22,7 +22,10 @@ add_executable(SupFDetMonClient
     src/SupFDetMonClient.cxx
 )
 
+set_target_properties(SupFDetMonClient PROPERTIES ENABLE_EXPORTS ON)
+
 target_link_libraries(SupFDetMonClient
     PRIVATE
         SupFDetMonClientLib
+        ROOT::Rint
 )
