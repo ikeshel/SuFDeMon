@@ -32,7 +32,8 @@ public:
     void ClearAllHistograms();
     void AutoUpdateToggled();
     void UpdateIntervalChanged();
-    void UpdateIntervalButton(Long_t value);
+    void IncreaseUpdateInterval();
+    void DecreaseUpdateInterval();
     void AutoUpdate();
     void CloseClient();
     void CloseServer();
