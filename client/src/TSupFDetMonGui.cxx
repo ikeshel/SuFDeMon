@@ -114,6 +114,11 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     MapSubwindows();
     Resize(GetDefaultSize());
     MapWindow();
+
+    // Try the host/port supplied on the command line immediately at startup.
+    // If the server is unavailable, the GUI remains open and the user can
+    // retry later with the Connect button.
+    ConnectServer();
 }
 
 TSupFDetMonGui::~TSupFDetMonGui()
