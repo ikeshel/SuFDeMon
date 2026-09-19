@@ -96,7 +96,8 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
                                              TGNumberFormat::kNESRealTwo,
                                              TGNumberFormat::kNEAPositive,
                                              TGNumberFormat::kNELLimitMin,
-                                             0.05);
+                                             0.2);
+    fUpdateIntervalEntry->SetStepSize(0.2);
     updateRow->AddFrame(fAutoUpdateCheck, new TGLayoutHints(kLHintsCenterY, 2, 16, 5, 5));
     updateRow->AddFrame(new TGLabel(updateRow, "Interval [s]:"), new TGLayoutHints(kLHintsCenterY, 2, 6, 5, 5));
     updateRow->AddFrame(fUpdateIntervalEntry, new TGLayoutHints(kLHintsCenterY, 2, 2, 5, 5));
@@ -115,13 +116,18 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
 
     AddFrame(controls, new TGLayoutHints(kLHintsExpandX, 8, 8, 4, 4));
 
-    auto* processControls = new TGGroupFrame(this, "Process Control", kHorizontalFrame);
-    fCloseClientButton = new TGTextButton(processControls, "Close client");
-    fCloseServerButton = new TGTextButton(processControls, "Close server");
-    fCloseAllButton = new TGTextButton(processControls, "Close All");
-    processControls->AddFrame(fCloseClientButton, new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 4, 8, 8));
-    processControls->AddFrame(fCloseServerButton, new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 4, 8, 8));
-    processControls->AddFrame(fCloseAllButton, new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 4, 8, 8));
+    // Process controls: use a vertical group with one horizontal row so the
+    // buttons are vertically centered inside the group, like Connection.
+    auto* processControls = new TGGroupFrame(this, "Process Control", kVerticalFrame);
+    auto* processRow = new TGHorizontalFrame(processControls);
+    fCloseClientButton = new TGTextButton(processRow, "Close client");
+    fCloseServerButton = new TGTextButton(processRow, "Close server");
+    fCloseAllButton = new TGTextButton(processRow, "Close All");
+    processRow->AddFrame(fCloseClientButton, new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 4, 0, 0));
+    processRow->AddFrame(fCloseServerButton, new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 4, 0, 0));
+    processRow->AddFrame(fCloseAllButton, new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 4, 0, 0));
+    processControls->AddFrame(processRow,
+                              new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 0, 0, 12, 12));
     AddFrame(processControls, new TGLayoutHints(kLHintsExpandX, 8, 8, 4, 8));
 
     // TTimer emits Timeout() in the ROOT event loop. It is single-shot here and
@@ -292,7 +298,7 @@ void TSupFDetMonGui::UpdateTimerState()
     const bool connected = fClient && fClient->IsConnected();
     if (!enabled || !connected || !fHasDrawnHistogram) return;
 
-    const double seconds = std::max(0.05, fUpdateIntervalEntry->GetNumber());
+    const double seconds = std::max(0.2, fUpdateIntervalEntry->GetNumber());
     const Long_t milliseconds = static_cast<Long_t>(std::lround(seconds * 1000.0));
     fUpdateTimer->Start(milliseconds, kTRUE);
 }
