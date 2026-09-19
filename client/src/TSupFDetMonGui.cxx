@@ -11,7 +11,10 @@
 #include <TGNumberEntry.h>
 #include <TGTextEntry.h>
 #include <TH1D.h>
+#include <TTimer.h>
 
+#include <algorithm>
+#include <cmath>
 #include <string>
 
 ClassImp(TSupFDetMonGui)
@@ -69,6 +72,19 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     fHistogramEntry->SetEnabled(kFALSE);
     controls->AddFrame(fHistogramEntry, new TGLayoutHints(kLHintsExpandX, 2, 2, 2, 10));
 
+    auto* updateRow = new TGHorizontalFrame(controls);
+    fAutoUpdateCheck = new TGCheckButton(updateRow, "Auto update");
+    fAutoUpdateCheck->SetState(kButtonDown);
+    fUpdateIntervalEntry = new TGNumberEntry(updateRow, 1.0, 6, -1,
+                                             TGNumberFormat::kNESRealTwo,
+                                             TGNumberFormat::kNEAPositive,
+                                             TGNumberFormat::kNELLimitMin,
+                                             0.05);
+    updateRow->AddFrame(fAutoUpdateCheck, new TGLayoutHints(kLHintsCenterY, 2, 16, 5, 5));
+    updateRow->AddFrame(new TGLabel(updateRow, "Interval [s]:"), new TGLayoutHints(kLHintsCenterY, 2, 6, 5, 5));
+    updateRow->AddFrame(fUpdateIntervalEntry, new TGLayoutHints(kLHintsCenterY, 2, 2, 5, 5));
+    controls->AddFrame(updateRow, new TGLayoutHints(kLHintsExpandX));
+
     fDrawButton = new TGTextButton(controls, "&Draw");
     fClearButton = new TGTextButton(controls, "C&lear");
     fClearAllButton = new TGTextButton(controls, "Clear &All");
@@ -77,6 +93,10 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     controls->AddFrame(fClearAllButton, new TGLayoutHints(kLHintsExpandX, 2, 2, 4, 8));
     AddFrame(controls, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY, 8, 8, 4, 8));
 
+    // TTimer emits Timeout() in the ROOT event loop. It is single-shot here and
+    // restarted after every refresh, so changing the interval takes effect cleanly.
+    fUpdateTimer = new TTimer(1000, kTRUE);
+
     fConnectButton->Connect("Clicked()", "TSupFDetMonGui", this, "ConnectServer()");
     fDisconnectButton->Connect("Clicked()", "TSupFDetMonGui", this, "DisconnectServer()");
     fFieldCageCombo->Connect("Selected(Int_t)", "TSupFDetMonGui", this, "SelectionChanged(Int_t)");
@@ -84,6 +104,9 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     fDrawButton->Connect("Clicked()", "TSupFDetMonGui", this, "DrawSelected()");
     fClearButton->Connect("Clicked()", "TSupFDetMonGui", this, "ClearSelected()");
     fClearAllButton->Connect("Clicked()", "TSupFDetMonGui", this, "ClearAllHistograms()");
+    fAutoUpdateCheck->Connect("Toggled(Bool_t)", "TSupFDetMonGui", this, "AutoUpdateToggled()");
+    fUpdateIntervalEntry->Connect("ValueSet(Long_t)", "TSupFDetMonGui", this, "UpdateIntervalChanged()");
+    fUpdateTimer->Connect("Timeout()", "TSupFDetMonGui", this, "AutoUpdate()");
 
     UpdateHistogramName();
     SetConnectedUi(false);
@@ -95,6 +118,11 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
 
 TSupFDetMonGui::~TSupFDetMonGui()
 {
+    if (fUpdateTimer) {
+        fUpdateTimer->TurnOff();
+        delete fUpdateTimer;
+        fUpdateTimer = nullptr;
+    }
     if (fClient) fClient->Disconnect();
 }
 
@@ -116,6 +144,7 @@ void TSupFDetMonGui::SetConnectedUi(bool connected)
     fClearButton->SetEnabled(connected);
     fClearAllButton->SetEnabled(connected);
     fStatusLabel->SetText(connected ? "Connected" : "Disconnected");
+    if (!connected && fUpdateTimer) fUpdateTimer->TurnOff();
     Layout();
 }
 
@@ -127,10 +156,12 @@ void TSupFDetMonGui::ConnectServer()
     const bool connected = fClient->Connect();
     if (!connected) fClient.reset();
     SetConnectedUi(connected);
+    UpdateTimerState();
 }
 
 void TSupFDetMonGui::DisconnectServer()
 {
+    if (fUpdateTimer) fUpdateTimer->TurnOff();
     if (fClient) {
         fClient->Disconnect();
         fClient.reset();
@@ -143,12 +174,15 @@ void TSupFDetMonGui::SelectionChanged(Int_t)
     UpdateHistogramName();
 }
 
-void TSupFDetMonGui::DrawSelected()
+void TSupFDetMonGui::FetchAndDraw()
 {
     if (!fClient || !fClient->IsConnected()) return;
 
-    fHistogram = fClient->GetHistogram(SelectedHistogramName());
-    if (!fHistogram) return;
+    auto histogram = fClient->GetHistogram(SelectedHistogramName());
+    if (!histogram) return;
+
+    // Keep the existing canvas window; only replace the received snapshot.
+    fHistogram = std::move(histogram);
 
     if (!fCanvas)
         fCanvas = new TCanvas("SupFDetMonCanvas", "SupFDetMon Histogram", 1000, 700);
@@ -158,24 +192,67 @@ void TSupFDetMonGui::DrawSelected()
     fHistogram->Draw();
     fCanvas->Modified();
     fCanvas->Update();
+    fHasDrawnHistogram = true;
+}
+
+void TSupFDetMonGui::DrawSelected()
+{
+    FetchAndDraw();
+    UpdateTimerState();
 }
 
 void TSupFDetMonGui::ClearSelected()
 {
     if (!fClient || !fClient->IsConnected()) return;
     if (fClient->ClearHistogram(SelectedHistogramName()))
-        DrawSelected();
+        FetchAndDraw();
+    UpdateTimerState();
 }
 
 void TSupFDetMonGui::ClearAllHistograms()
 {
     if (!fClient || !fClient->IsConnected()) return;
     if (fClient->ClearAll())
-        DrawSelected();
+        FetchAndDraw();
+    UpdateTimerState();
+}
+
+void TSupFDetMonGui::AutoUpdateToggled()
+{
+    UpdateTimerState();
+}
+
+void TSupFDetMonGui::UpdateIntervalChanged()
+{
+    UpdateTimerState();
+}
+
+void TSupFDetMonGui::UpdateTimerState()
+{
+    if (!fUpdateTimer) return;
+    fUpdateTimer->TurnOff();
+
+    const bool enabled = fAutoUpdateCheck && fAutoUpdateCheck->IsOn();
+    const bool connected = fClient && fClient->IsConnected();
+    if (!enabled || !connected || !fHasDrawnHistogram) return;
+
+    const double seconds = std::max(0.05, fUpdateIntervalEntry->GetNumber());
+    const Long_t milliseconds = static_cast<Long_t>(std::lround(seconds * 1000.0));
+    fUpdateTimer->Start(milliseconds, kTRUE);
+}
+
+void TSupFDetMonGui::AutoUpdate()
+{
+    if (!fAutoUpdateCheck || !fAutoUpdateCheck->IsOn()) return;
+    if (!fClient || !fClient->IsConnected() || !fHasDrawnHistogram) return;
+
+    FetchAndDraw();
+    UpdateTimerState();
 }
 
 void TSupFDetMonGui::CloseWindow()
 {
+    if (fUpdateTimer) fUpdateTimer->TurnOff();
     DisconnectServer();
     DeleteWindow();
 }
