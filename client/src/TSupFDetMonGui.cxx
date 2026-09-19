@@ -144,9 +144,11 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     fCloseServerButton->Connect("Clicked()", "TSupFDetMonGui", this, "CloseServer()");
     fCloseAllButton->Connect("Clicked()", "TSupFDetMonGui", this, "CloseAll()");
     fAutoUpdateCheck->Connect("Toggled(Bool_t)", "TSupFDetMonGui", this, "AutoUpdateToggled()");
-    // TGNumberEntry's RealTwo arrows intrinsically change by 0.01.  Let that
-    // happen, then quantize every resulting value onto our 0.2 s grid.
-    fUpdateIntervalEntry->Connect("ValueChanged(Long_t)", "TSupFDetMonGui", this, "UpdateIntervalChanged()");
+    // Route the arrow buttons to the parent instead of letting TGNumberEntry
+    // apply its built-in 0.01 step. ProcessMessage() receives +1/-1 and the
+    // ValueChanged signal below turns that into an exact 0.2 s step.
+    fUpdateIntervalEntry->SetButtonToNum(kTRUE);
+    fUpdateIntervalEntry->Connect("ValueChanged(Long_t)", "TSupFDetMonGui", this, "UpdateIntervalArrow(Long_t)");
     fUpdateIntervalEntry->Connect("ValueSet(Long_t)", "TSupFDetMonGui", this, "UpdateIntervalChanged()");
     fUpdateTimer->Connect("Timeout()", "TSupFDetMonGui", this, "AutoUpdate()");
 
@@ -290,42 +292,20 @@ void TSupFDetMonGui::UpdateIntervalChanged()
 {
     if (!fUpdateIntervalEntry) return;
 
-    // Snap any GUI change to exact 0.2 s increments.  For an arrow click ROOT
-    // first produces e.g. 1.01/0.99; ceil/floor converts that to 1.2/0.8.
-    const double raw = fUpdateIntervalEntry->GetNumber();
-    double snapped = 0.2;
-    if (raw >= 0.2) {
-        const double scaled = raw * 5.0;
-        const double nearest = std::round(scaled);
-        if (std::abs(scaled - nearest) < 1e-6)
-            snapped = nearest / 5.0;
-        else if (raw > 1.0 && raw < 1.2)
-            snapped = 1.2;
-        else if (raw < 1.0 && raw > 0.8)
-            snapped = 0.8;
-        else
-            snapped = std::round(scaled) / 5.0;
-    }
-
-    snapped = std::max(0.2, snapped);
-    fUpdateIntervalEntry->SetNumber(snapped, kFALSE);
+    // Manual input is allowed, but keep the timer at or above 0.2 s.
+    if (fUpdateIntervalEntry->GetNumber() < 0.2)
+        fUpdateIntervalEntry->SetNumber(0.2, kFALSE);
     UpdateTimerState();
 }
 
-void TSupFDetMonGui::IncreaseUpdateInterval()
+void TSupFDetMonGui::UpdateIntervalArrow(Long_t value)
 {
-    if (!fUpdateIntervalEntry) return;
-    const double value = std::round((fUpdateIntervalEntry->GetNumber() + 0.2) * 5.0) / 5.0;
-    fUpdateIntervalEntry->SetNumber(value, kFALSE);
-    UpdateTimerState();
-}
+    if (!fUpdateIntervalEntry || value == 0) return;
 
-void TSupFDetMonGui::DecreaseUpdateInterval()
-{
-    if (!fUpdateIntervalEntry) return;
-    const double value = std::max(0.2,
-        std::round((fUpdateIntervalEntry->GetNumber() - 0.2) * 5.0) / 5.0);
-    fUpdateIntervalEntry->SetNumber(value, kFALSE);
+    const double current = fUpdateIntervalEntry->GetNumber();
+    const double direction = value > 0 ? 1.0 : -1.0;
+    const double stepped = std::max(0.2, current + direction * 0.2);
+    fUpdateIntervalEntry->SetNumber(std::round(stepped * 5.0) / 5.0, kFALSE);
     UpdateTimerState();
 }
 
