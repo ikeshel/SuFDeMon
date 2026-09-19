@@ -11,6 +11,7 @@
 #include <TGLabel.h>
 #include <TGClient.h>
 #include <TGNumberEntry.h>
+#include <TGPicture.h>
 #include <TGTextEntry.h>
 #include <TH1D.h>
 #include <TTimer.h>
@@ -103,9 +104,16 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     controls->AddFrame(updateRow, new TGLayoutHints(kLHintsExpandX));
 
     auto* drawRow = new TGHorizontalFrame(controls);
-    fDrawButton = new TGTextButton(drawRow, "&Draw");
-    fClearButton = new TGTextButton(drawRow, "C&lear");
-    fClearAllButton = new TGTextButton(drawRow, "Clear &All");
+    const TGPicture* drawIcon = gClient->GetPicture("media-playback-start.png");
+    const TGPicture* clearIcon = gClient->GetPicture("edit-clear.png");
+    const TGPicture* clearAllIcon = gClient->GetPicture("edit-delete.png");
+
+    fDrawButton = drawIcon ? new TGTextButton(drawRow, "&Draw", drawIcon)
+                           : new TGTextButton(drawRow, "&Draw");
+    fClearButton = clearIcon ? new TGTextButton(drawRow, "C&lear", clearIcon)
+                             : new TGTextButton(drawRow, "C&lear");
+    fClearAllButton = clearAllIcon ? new TGTextButton(drawRow, "Clear &All", clearAllIcon)
+                                   : new TGTextButton(drawRow, "Clear &All");
     drawRow->AddFrame(fDrawButton, new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 2, 4, 6, 6));
     drawRow->AddFrame(fClearButton, new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 4, 6, 6));
     drawRow->AddFrame(fClearAllButton, new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 2, 6, 6));
@@ -114,9 +122,16 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     AddFrame(controls, new TGLayoutHints(kLHintsExpandX, 8, 8, 4, 4));
 
     auto* processControls = new TGGroupFrame(this, "Process Control", kHorizontalFrame);
-    fCloseClientButton = new TGTextButton(processControls, "Close client");
-    fCloseServerButton = new TGTextButton(processControls, "Close server");
-    fCloseAllButton = new TGTextButton(processControls, "Close All");
+    const TGPicture* closeClientIcon = gClient->GetPicture("window-close.png");
+    const TGPicture* closeServerIcon = gClient->GetPicture("process-stop.png");
+    const TGPicture* closeAllIcon = gClient->GetPicture("system-shutdown.png");
+
+    fCloseClientButton = closeClientIcon ? new TGTextButton(processControls, "Close client", closeClientIcon)
+                                         : new TGTextButton(processControls, "Close client");
+    fCloseServerButton = closeServerIcon ? new TGTextButton(processControls, "Close server", closeServerIcon)
+                                         : new TGTextButton(processControls, "Close server");
+    fCloseAllButton = closeAllIcon ? new TGTextButton(processControls, "Close All", closeAllIcon)
+                                   : new TGTextButton(processControls, "Close All");
     processControls->AddFrame(fCloseClientButton, new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 4, 8, 8));
     processControls->AddFrame(fCloseServerButton, new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 4, 8, 8));
     processControls->AddFrame(fCloseAllButton, new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 4, 8, 8));
