@@ -102,13 +102,16 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     updateRow->AddFrame(fUpdateIntervalEntry, new TGLayoutHints(kLHintsCenterY, 2, 2, 5, 5));
     controls->AddFrame(updateRow, new TGLayoutHints(kLHintsExpandX));
 
-    fDrawButton = new TGTextButton(controls, "&Draw");
-    fClearButton = new TGTextButton(controls, "C&lear");
-    fClearAllButton = new TGTextButton(controls, "Clear &All");
-    controls->AddFrame(fDrawButton, new TGLayoutHints(kLHintsExpandX, 2, 2, 8, 4));
-    controls->AddFrame(fClearButton, new TGLayoutHints(kLHintsExpandX, 2, 2, 4, 4));
-    controls->AddFrame(fClearAllButton, new TGLayoutHints(kLHintsExpandX, 2, 2, 4, 8));
-    // Keep the histogram group at its natural height so it cannot consume\n    // the vertical space needed by the Process Control group below it.\n    AddFrame(controls, new TGLayoutHints(kLHintsExpandX | kLHintsTop, 8, 8, 4, 4));
+    auto* drawRow = new TGHorizontalFrame(controls);
+    fDrawButton = new TGTextButton(drawRow, "&Draw");
+    fClearButton = new TGTextButton(drawRow, "C&lear");
+    fClearAllButton = new TGTextButton(drawRow, "Clear &All");
+    drawRow->AddFrame(fDrawButton, new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 2, 4, 6, 6));
+    drawRow->AddFrame(fClearButton, new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 4, 6, 6));
+    drawRow->AddFrame(fClearAllButton, new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 2, 6, 6));
+    controls->AddFrame(drawRow, new TGLayoutHints(kLHintsExpandX, 0, 0, 2, 4));
+
+    AddFrame(controls, new TGLayoutHints(kLHintsExpandX, 8, 8, 4, 4));
 
     auto* processControls = new TGGroupFrame(this, "Process Control", kHorizontalFrame);
     fCloseClientButton = new TGTextButton(processControls, "Close client");
@@ -144,7 +147,9 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     // Size after every group has been mapped so ROOT includes Connection,
     // Select Histogram (including Draw/Clear/Clear All), and Process Control.
     const TGDimension defaultSize = GetDefaultSize();
-    Resize(defaultSize.fWidth, defaultSize.fHeight);
+    const UInt_t windowWidth = std::max<UInt_t>(620, defaultSize.fWidth);
+    const UInt_t windowHeight = std::max<UInt_t>(500, defaultSize.fHeight);
+    Resize(windowWidth, windowHeight);
     MapWindow();
 
     // Try the host/port supplied on the command line immediately at startup.
