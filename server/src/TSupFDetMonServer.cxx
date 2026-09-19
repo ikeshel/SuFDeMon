@@ -12,6 +12,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <chrono>
 
 namespace {
 
@@ -35,7 +36,12 @@ TSupFDetMonServer::TSupFDetMonServer(int port)
     CreateHistograms();
 }
 
-TSupFDetMonServer::~TSupFDetMonServer() = default;
+TSupFDetMonServer::~TSupFDetMonServer()
+{
+    fFillRunning = false;
+    if (fFillThread.joinable())
+        fFillThread.join();
+}
 
 void TSupFDetMonServer::CreateHistograms()
 {
@@ -62,6 +68,16 @@ void TSupFDetMonServer::FillHistograms()
             const double sigma = 120.0 + 10.0 * fc;
             fMusicAdc[fc][adc]->Fill(fRandom->Gaus(mean, sigma));
         }
+    }
+}
+
+void TSupFDetMonServer::FillLoop()
+{
+    // Simulate a continuously running detector independently of client traffic.
+    // One event per histogram is generated every 10 ms (~100 Hz).
+    while (fFillRunning) {
+        FillHistograms();
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }
 
@@ -159,8 +175,6 @@ bool TSupFDetMonServer::HandleClient(TSocket& socket)
     std::cout << "Client connected." << std::endl;
 
     while (socket.IsValid()) {
-        FillHistograms();
-
         char commandBuffer[4096] = {};
         const int received = socket.Recv(commandBuffer, sizeof(commandBuffer));
 
@@ -193,6 +207,10 @@ int TSupFDetMonServer::Run()
     std::cout << "SupFDetMon server listening on port " << fPort << std::endl;
     std::cout << "Created " << kNFieldCages * kNAdcChannels
               << " MUSIC ADC histograms." << std::endl;
+
+    fFillRunning = true;
+    fFillThread = std::thread(&TSupFDetMonServer::FillLoop, this);
+    std::cout << "Continuous simulated data filling started at ~100 Hz." << std::endl;
 
     while (true) {
         std::unique_ptr<TSocket> socket(fServerSocket->Accept());
