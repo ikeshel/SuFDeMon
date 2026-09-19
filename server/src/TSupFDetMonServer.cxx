@@ -161,6 +161,13 @@ bool TSupFDetMonServer::HandleCommand(TSocket& socket, const std::string& comman
         return true;
     }
 
+    if (command == SupFDetMon::Protocol::kShutdown) {
+        SendText(socket, "BYE");
+        fServerRunning = false;
+        fFillRunning = false;
+        return false;
+    }
+
     if (command == SupFDetMon::Protocol::kQuit) {
         SendText(socket, "BYE");
         return false;
@@ -223,5 +230,11 @@ int TSupFDetMonServer::Run()
         HandleClient(*socket);
     }
 
+    fFillRunning = false;
+    if (fFillThread.joinable())
+        fFillThread.join();
+
+    fServerSocket->Close();
+    std::cout << "SupFDetMon server stopped." << std::endl;
     return 0;
 }
