@@ -18,7 +18,8 @@ class TSupFDetMonClient;
 class TSupFDetMonGui : public TGMainFrame
 {
 public:
-    TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t height);
+    TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t height,
+                   std::string host = "localhost", int port = 9090);
     ~TSupFDetMonGui() override;
 
     void ConnectServer();
@@ -36,21 +37,21 @@ private:
 
     TGTextEntry* fHostEntry = nullptr;
     TGNumberEntry* fPortEntry = nullptr;
-    TGTextButton* fConnectButton = nullptr;
-    TGTextButton* fDisconnectButton = nullptr;
-    TGLabel* fStatusLabel = nullptr;
-
     TGComboBox* fFieldCageCombo = nullptr;
     TGComboBox* fAdcCombo = nullptr;
     TGTextEntry* fHistogramEntry = nullptr;
+    TGTextButton* fConnectButton = nullptr;
+    TGTextButton* fDisconnectButton = nullptr;
     TGTextButton* fDrawButton = nullptr;
     TGTextButton* fClearButton = nullptr;
     TGTextButton* fClearAllButton = nullptr;
-
+    TGLabel* fStatusLabel = nullptr;
     TRootEmbeddedCanvas* fCanvas = nullptr;
 
     std::unique_ptr<TSupFDetMonClient> fClient;
     std::unique_ptr<TH1D> fHistogram;
+
+    ClassDefOverride(TSupFDetMonGui, 0);
 };
 
 #endif
