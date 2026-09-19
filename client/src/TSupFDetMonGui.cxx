@@ -93,7 +93,7 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     fAutoUpdateCheck = new TGCheckButton(updateRow, "Auto update");
     fAutoUpdateCheck->SetState(kButtonDown);
     fUpdateIntervalEntry = new TGNumberEntry(updateRow, 1.0, 6, -1,
-                                             TGNumberFormat::kNESRealTwo,
+                                             TGNumberFormat::kNESRealOne,
                                              TGNumberFormat::kNEAPositive,
                                              TGNumberFormat::kNELLimitMin,
                                              0.2);
