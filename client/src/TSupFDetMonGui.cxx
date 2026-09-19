@@ -28,6 +28,8 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
 
     // Connection controls
     auto* connection = new TGGroupFrame(this, "Connection", kHorizontalFrame);
+    // Do not let this group frame stretch vertically with the main window.
+    connection->SetLayoutManager(new TGHorizontalLayout(connection));
     fHostEntry = new TGTextEntry(connection, host.c_str());
     fHostEntry->Resize(180, 28);
     fPortEntry = new TGNumberEntry(connection, port, 6, -1, TGNumberFormat::kNESInteger,
@@ -44,7 +46,7 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     connection->AddFrame(fConnectButton, new TGLayoutHints(kLHintsCenterY, 0, 8, 5, 5));
     connection->AddFrame(fDisconnectButton, new TGLayoutHints(kLHintsCenterY, 0, 20, 5, 5));
     connection->AddFrame(fStatusLabel, new TGLayoutHints(kLHintsCenterY, 0, 5, 5, 5));
-    AddFrame(connection, new TGLayoutHints(kLHintsExpandX, 8, 8, 8, 4));
+    AddFrame(connection, new TGLayoutHints(kLHintsExpandX | kLHintsTop, 8, 8, 8, 4));
 
     // Histogram selection controls
     auto* controls = new TGGroupFrame(this, "Select Histogram", kVerticalFrame);
