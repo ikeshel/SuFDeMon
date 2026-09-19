@@ -41,6 +41,10 @@ add_executable(SupFDetMonGui
     ${CMAKE_CURRENT_BINARY_DIR}/G__SupFDetMonGui.cxx
 )
 
+# ROOT signal/slot wrappers are resolved by Cling at runtime.
+# Export GUI executable symbols so the generated wrappers can resolve them.
+set_target_properties(SupFDetMonGui PROPERTIES ENABLE_EXPORTS ON)
+
 target_include_directories(SupFDetMonGui
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/inc
