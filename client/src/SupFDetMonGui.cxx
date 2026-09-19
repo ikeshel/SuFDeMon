@@ -1,12 +1,14 @@
 #include "TSupFDetMonGui.h"
 #include "SupFDetMonProtocol.h"
 
-#include <TApplication.h>
 #include <TGClient.h>
+#include <TRint.h>
 
 #include <exception>
 #include <iostream>
 #include <string>
+
+TSupFDetMonGui* gSupFDetMonGui = nullptr;
 
 int main(int argc, char** argv)
 {
@@ -17,10 +19,7 @@ int main(int argc, char** argv)
         std::cerr << "Usage: " << argv[0] << " [host] [port]\n";
         return 1;
     }
-
-    if (argc >= 2)
-        host = argv[1];
-
+    if (argc >= 2) host = argv[1];
     if (argc == 3) {
         try {
             port = std::stoi(argv[2]);
@@ -28,20 +27,25 @@ int main(int argc, char** argv)
             std::cerr << "Invalid port: " << argv[2] << '\n';
             return 1;
         }
-
         if (port < 1 || port > 65535) {
             std::cerr << "Port must be in the range 1..65535.\n";
             return 1;
         }
     }
 
-    // ROOT GUI itself does not need the SupFDetMon host/port arguments.
+    // TRint gives the GUI process the normal interactive ROOT command line too.
     int rootArgc = 1;
     char* rootArgv[] = {argv[0], nullptr};
-    TApplication application("SupFDetMonGui", &rootArgc, rootArgv);
+    TRint application("SupFDetMonGui", &rootArgc, rootArgv);
 
-    new TSupFDetMonGui(gClient->GetRoot(), 1200, 700, host, port);
+    gSupFDetMonGui = new TSupFDetMonGui(gClient->GetRoot(), 430, 360, host, port);
+
+    std::cout << "\nSupFDetMon GUI started. ROOT command line is active.\n"
+              << "The control window and TCanvas are separate windows.\n"
+              << "Global GUI pointer: gSupFDetMonGui\n\n";
 
     application.Run();
+
+    gSupFDetMonGui = nullptr;
     return 0;
 }
