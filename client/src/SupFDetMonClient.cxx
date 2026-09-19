@@ -2,6 +2,7 @@
 
 #include "SupFDetMonProtocol.h"
 
+#include <TApplication.h>
 #include <TH1D.h>
 
 #include <iostream>
@@ -28,6 +29,8 @@ void PrintHelp()
 
 int main(int argc, char** argv)
 {
+    TApplication application("SupFDetMonClient", &argc, argv);
+
     std::string host = "localhost";
     int port = SupFDetMon::Protocol::kDefaultPort;
 
@@ -36,9 +39,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    if (argc >= 2) {
-        host = argv[1];
-    }
+    if (argc >= 2) host = argv[1];
 
     if (argc == 3) {
         try {
@@ -50,10 +51,7 @@ int main(int argc, char** argv)
     }
 
     TSupFDetMonClient client(host, port);
-
-    if (!client.Connect()) {
-        return 1;
-    }
+    if (!client.Connect()) return 1;
 
     std::cout << "Connected to " << host << ':' << port << std::endl;
     PrintHelp();
@@ -61,65 +59,43 @@ int main(int argc, char** argv)
     std::string line;
     while (true) {
         std::cout << "SupFDetMon> " << std::flush;
-
-        if (!std::getline(std::cin, line)) {
-            break;
-        }
-
-        if (line.empty()) {
-            continue;
-        }
-
-        if (line == "quit" || line == "exit") {
-            break;
-        }
-
-        if (line == "help") {
-            PrintHelp();
-            continue;
-        }
-
+        if (!std::getline(std::cin, line)) break;
+        if (line.empty()) continue;
+        if (line == "quit" || line == "exit") break;
+        if (line == "help") { PrintHelp(); continue; }
         if (line == "ping") {
             std::cout << (client.Ping() ? "PONG" : "Ping failed") << std::endl;
             continue;
         }
-
         if (line == "list") {
             std::cout << client.ListHistograms();
             continue;
         }
-
         if (line == "clear all") {
             std::cout << (client.ClearAll() ? "OK" : "Clear failed") << std::endl;
             continue;
         }
 
         std::istringstream input(line);
-        std::string command;
-        std::string name;
+        std::string command, name;
         input >> command >> name;
 
         if (command == "get" && !name.empty()) {
             auto histogram = client.GetHistogram(name);
-
             if (histogram) {
                 std::cout << histogram->GetName()
                           << ": entries=" << histogram->GetEntries()
                           << ", mean=" << histogram->GetMean()
-                          << ", rms=" << histogram->GetRMS()
-                          << std::endl;
+                          << ", rms=" << histogram->GetRMS() << std::endl;
             }
             continue;
         }
-
         if (command == "draw" && !name.empty()) {
             client.DrawHistogram(name);
             continue;
         }
-
         if (command == "clear" && !name.empty()) {
-            std::cout << (client.ClearHistogram(name) ? "OK" : "Clear failed")
-                      << std::endl;
+            std::cout << (client.ClearHistogram(name) ? "OK" : "Clear failed") << std::endl;
             continue;
         }
 
