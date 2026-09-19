@@ -219,10 +219,13 @@ int TSupFDetMonServer::Run()
     fFillThread = std::thread(&TSupFDetMonServer::FillLoop, this);
     std::cout << "Continuous simulated data filling started at ~100 Hz." << std::endl;
 
-    while (true) {
+    fServerRunning = true;
+    while (fServerRunning) {
         std::unique_ptr<TSocket> socket(fServerSocket->Accept());
 
         if (!socket || !socket->IsValid()) {
+            if (!fServerRunning)
+                break;
             std::cerr << "Failed to accept client connection." << std::endl;
             continue;
         }
