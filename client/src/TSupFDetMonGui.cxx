@@ -26,6 +26,7 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     SetCleanup(kDeepCleanup);
     SetWindowName("SupFDetMon Controls");
 
+    // Connection controls
     auto* connection = new TGGroupFrame(this, "Connection", kHorizontalFrame);
     fHostEntry = new TGTextEntry(connection, host.c_str());
     fHostEntry->Resize(180, 28);
@@ -37,7 +38,7 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     fStatusLabel = new TGLabel(connection, "Disconnected");
 
     connection->AddFrame(new TGLabel(connection, "Host:"), new TGLayoutHints(kLHintsCenterY, 5, 4, 5, 5));
-    connection->AddFrame(fHostEntry, new TGLayoutHints(kLHintsCenterY, 0, 15, 5, 5));
+    connection->AddFrame(fHostEntry, new TGLayoutHints(kLHintsCenterY, 0, 5, 5, 5));
     connection->AddFrame(new TGLabel(connection, "Port:"), new TGLayoutHints(kLHintsCenterY, 0, 4, 5, 5));
     connection->AddFrame(fPortEntry, new TGLayoutHints(kLHintsCenterY, 0, 15, 5, 5));
     connection->AddFrame(fConnectButton, new TGLayoutHints(kLHintsCenterY, 0, 8, 5, 5));
@@ -45,6 +46,7 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     connection->AddFrame(fStatusLabel, new TGLayoutHints(kLHintsCenterY, 0, 5, 5, 5));
     AddFrame(connection, new TGLayoutHints(kLHintsExpandX, 8, 8, 8, 4));
 
+    // Histogram selection controls
     auto* controls = new TGGroupFrame(this, "Select Histogram", kVerticalFrame);
 
     auto* fcRow = new TGHorizontalFrame(controls);
