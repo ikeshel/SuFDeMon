@@ -24,9 +24,9 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     SetWindowName("SupFDetMon Client");
 
     auto* connection = new TGGroupFrame(this, "Connection", kHorizontalFrame);
-    fHostEntry = new TGTextEntry(connection, "localhost");
+    fHostEntry = new TGTextEntry(connection, host.c_str());
     fHostEntry->Resize(180, 28);
-    fPortEntry = new TGNumberEntry(connection, 9090, 6, -1, TGNumberFormat::kNESInteger,
+    fPortEntry = new TGNumberEntry(connection, port, 6, -1, TGNumberFormat::kNESInteger,
                                    TGNumberFormat::kNEANonNegative,
                                    TGNumberFormat::kNELLimitMinMax, 1, 65535);
     fConnectButton = new TGTextButton(connection, "&Connect");
