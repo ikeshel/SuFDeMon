@@ -57,7 +57,10 @@ private:
     TGTextButton* fDisconnectButton = nullptr;
     TGTextButton* fDrawButton = nullptr;
     TGTextButton* fClearButton = nullptr;
-    TGTextButton* fClearAllButton = nullptr;\n    TGTextButton* fCloseClientButton = nullptr;\n    TGTextButton* fCloseServerButton = nullptr;\n    TGTextButton* fCloseAllButton = nullptr;
+    TGTextButton* fClearAllButton = nullptr;
+    TGTextButton* fCloseClientButton = nullptr;
+    TGTextButton* fCloseServerButton = nullptr;
+    TGTextButton* fCloseAllButton = nullptr;
     TGCheckButton* fAutoUpdateCheck = nullptr;
     TGNumberEntry* fUpdateIntervalEntry = nullptr;
     TGLabel* fStatusLabel = nullptr;
