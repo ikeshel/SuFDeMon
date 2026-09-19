@@ -44,7 +44,7 @@ private:
     std::unique_ptr<TRandom3> fRandom;
     std::unique_ptr<TServerSocket> fServerSocket;
     std::atomic<bool> fFillRunning{false};
-    std::thread fFillThread;
+    std::thread fFillThread;\n    std::atomic<bool> fServerRunning{true};
 };
 
 #endif
