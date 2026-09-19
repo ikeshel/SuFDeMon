@@ -97,7 +97,6 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
                                              TGNumberFormat::kNEAPositive,
                                              TGNumberFormat::kNELLimitMin,
                                              0.2);
-    fUpdateIntervalEntry->SetStepSize(0.2);
     updateRow->AddFrame(fAutoUpdateCheck, new TGLayoutHints(kLHintsCenterY, 2, 16, 5, 5));
     updateRow->AddFrame(new TGLabel(updateRow, "Interval [s]:"), new TGLayoutHints(kLHintsCenterY, 2, 6, 5, 5));
     updateRow->AddFrame(fUpdateIntervalEntry, new TGLayoutHints(kLHintsCenterY, 2, 2, 5, 5));
