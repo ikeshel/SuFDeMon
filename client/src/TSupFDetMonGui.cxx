@@ -11,7 +11,6 @@
 #include <TGLabel.h>
 #include <TGClient.h>
 #include <TGNumberEntry.h>
-#include <TGPicture.h>
 #include <TGTextEntry.h>
 #include <TH1D.h>
 #include <TTimer.h>
@@ -104,16 +103,12 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     controls->AddFrame(updateRow, new TGLayoutHints(kLHintsExpandX));
 
     auto* drawRow = new TGHorizontalFrame(controls);
-    const TGPicture* drawIcon = gClient->GetPicture("media-playback-start.png");
-    const TGPicture* clearIcon = gClient->GetPicture("edit-clear.png");
-    const TGPicture* clearAllIcon = gClient->GetPicture("edit-delete.png");
-
-    fDrawButton = new TGTextButton(drawRow, "&Draw");
-    fClearButton = new TGTextButton(drawRow, "C&lear");
-    fClearAllButton = new TGTextButton(drawRow, "Clear &All");
-    if (drawIcon) fDrawButton->SetIcon(drawIcon);
-    if (clearIcon) fClearButton->SetIcon(clearIcon);
-    if (clearAllIcon) fClearAllButton->SetIcon(clearAllIcon);
+    // TGTextButton does not support icons in the ROOT GUI API.  Use
+    // Unicode symbols in the labels so the buttons remain text buttons and
+    // work consistently on KDE without external icon files.
+    fDrawButton = new TGTextButton(drawRow, "▶  &Draw");
+    fClearButton = new TGTextButton(drawRow, "⌫  C&lear");
+    fClearAllButton = new TGTextButton(drawRow, "✖  Clear &All");
     drawRow->AddFrame(fDrawButton, new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 2, 4, 6, 6));
     drawRow->AddFrame(fClearButton, new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 4, 6, 6));
     drawRow->AddFrame(fClearAllButton, new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 2, 6, 6));
@@ -122,16 +117,9 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     AddFrame(controls, new TGLayoutHints(kLHintsExpandX, 8, 8, 4, 4));
 
     auto* processControls = new TGGroupFrame(this, "Process Control", kHorizontalFrame);
-    const TGPicture* closeClientIcon = gClient->GetPicture("window-close.png");
-    const TGPicture* closeServerIcon = gClient->GetPicture("process-stop.png");
-    const TGPicture* closeAllIcon = gClient->GetPicture("system-shutdown.png");
-
-    fCloseClientButton = new TGTextButton(processControls, "Close client");
-    fCloseServerButton = new TGTextButton(processControls, "Close server");
-    fCloseAllButton = new TGTextButton(processControls, "Close All");
-    if (closeClientIcon) fCloseClientButton->SetIcon(closeClientIcon);
-    if (closeServerIcon) fCloseServerButton->SetIcon(closeServerIcon);
-    if (closeAllIcon) fCloseAllButton->SetIcon(closeAllIcon);
+    fCloseClientButton = new TGTextButton(processControls, "✖  Close client");
+    fCloseServerButton = new TGTextButton(processControls, "■  Close server");
+    fCloseAllButton = new TGTextButton(processControls, "⏻  Close All");
     processControls->AddFrame(fCloseClientButton, new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 4, 8, 8));
     processControls->AddFrame(fCloseServerButton, new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 4, 8, 8));
     processControls->AddFrame(fCloseAllButton, new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 4, 8, 8));
