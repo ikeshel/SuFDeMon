@@ -12,7 +12,7 @@ inline constexpr std::string_view kList = "LIST";
 inline constexpr std::string_view kGet = "GET";
 inline constexpr std::string_view kClear = "CLEAR";
 inline constexpr std::string_view kClearAll = "CLEAR ALL";
-inline constexpr std::string_view kQuit = "QUIT";
+inline constexpr std::string_view kQuit = "QUIT";\ninline constexpr std::string_view kShutdown = "SHUTDOWN";
 
 } // namespace SupFDetMon::Protocol
 
