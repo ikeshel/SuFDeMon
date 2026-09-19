@@ -30,14 +30,21 @@ target_link_libraries(SupFDetMonClient
         ROOT::Rint
 )
 
+ROOT_GENERATE_DICTIONARY(G__SupFDetMonGui
+    ${CMAKE_CURRENT_SOURCE_DIR}/inc/TSupFDetMonGui.h
+    MODULE SupFDetMonGui
+)
+
 add_executable(SupFDetMonGui
     src/SupFDetMonGui.cxx
     src/TSupFDetMonGui.cxx
+    ${CMAKE_CURRENT_BINARY_DIR}/G__SupFDetMonGui.cxx
 )
 
 target_include_directories(SupFDetMonGui
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/inc
+        ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 target_link_libraries(SupFDetMonGui
