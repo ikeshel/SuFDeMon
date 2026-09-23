@@ -98,7 +98,7 @@ class ControlTests(unittest.TestCase):
 
     def test_individual_toggle_and_layout(self):
         w = self.window
-        self.assertEqual([w.column_layouts[k].count()-1 for k in ('MUSIC','PLSCI','SCIFI')], [2,3,14])
+        self.assertEqual([w.column_layouts[k].count()-2 for k in ('MUSIC','PLSCI','SCIFI')], [2,3,14])
         self.assertEqual(list(w.server_buttons)[-5:], ['SCIFI10','SCIFI11','SCIFI12','SCIFI13','SCIFI14'])
         w.server_buttons['MUSIC1'].click()
         self.assertTrue(w.busy)
@@ -110,6 +110,38 @@ class ControlTests(unittest.TestCase):
         w.server_buttons['MUSIC1'].click()
         self.wait(lambda: not w.busy and w.server_states['MUSIC1'] is False)
         self.assertEqual(json.loads(self.state.read_text()), [])
+
+    def test_group_actions_are_isolated(self):
+        w = self.window
+        for detector in ('MUSIC', 'PLSCI', 'SCIFI'):
+            before = set(json.loads(self.state.read_text()))
+            selected = {f'SuFDeMon-{name}' for name in w.group_servers[detector]}
+            w.group_buttons[detector]['start'].click()
+            self.assertTrue(w.busy)
+            self.assertTrue(all(not button.isEnabled()
+                                for buttons in w.group_buttons.values()
+                                for button in buttons.values()))
+            self.wait(lambda: not w.busy and all(
+                w.server_states[name] is True for name in w.group_servers[detector]))
+            self.assertEqual(set(json.loads(self.state.read_text())), before | selected)
+        for detector in ('MUSIC', 'PLSCI', 'SCIFI'):
+            before = set(json.loads(self.state.read_text()))
+            selected = {f'SuFDeMon-{name}' for name in w.group_servers[detector]}
+            w.group_buttons[detector]['stop'].click()
+            self.wait(lambda: not w.busy and all(
+                w.server_states[name] is False for name in w.group_servers[detector]))
+            self.assertEqual(set(json.loads(self.state.read_text())), before - selected)
+
+    def test_empty_group_does_not_run_global_action(self):
+        w = self.window
+        w.group_servers['MUSIC'] = []
+        w.update_buttons()
+        self.assertFalse(w.group_buttons['MUSIC']['start'].isEnabled())
+        self.assertFalse(w.group_buttons['MUSIC']['stop'].isEnabled())
+        with patch.object(w, 'run_script') as run:
+            w.run_group('start', 'MUSIC')
+            w.run_group('stop', 'MUSIC')
+            run.assert_not_called()
 
     def test_all_and_external_changes(self):
         w = self.window

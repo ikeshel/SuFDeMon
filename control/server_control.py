@@ -82,11 +82,25 @@ class ServerControlWindow(QMainWindow):
         # Row 2: one vertical column for each detector type.
         columns = QHBoxLayout()
         self.column_layouts = {}
+        self.group_servers = {}
+        self.group_buttons = {}
         for detector in ("MUSIC", "PLSCI", "SCIFI"):
             group = QGroupBox(detector)
             column = QVBoxLayout(group)
             column.setSpacing(5)
             self.column_layouts[detector] = column
+            self.group_servers[detector] = []
+            actions = QHBoxLayout()
+            self.group_buttons[detector] = {}
+            for action in ("start", "stop"):
+                button = QPushButton(f"{action.capitalize()} all")
+                button.setToolTip(f"{action.capitalize()} all configured {detector} servers")
+                button.clicked.connect(
+                    lambda checked=False, action=action, detector=detector:
+                    self.run_group(action, detector))
+                self.group_buttons[detector][action] = button
+                actions.addWidget(button)
+            column.addLayout(actions)
             columns.addWidget(group, 1)
         layout.addLayout(columns, 1)
         self.load_configs()
@@ -124,6 +138,9 @@ class ServerControlWindow(QMainWindow):
     def update_buttons(self):
         self.start_all.setEnabled(not self.busy and bool(self.server_buttons))
         self.stop_all.setEnabled(not self.busy)
+        for detector, buttons in self.group_buttons.items():
+            for button in buttons.values():
+                button.setEnabled(not self.busy and bool(self.group_servers[detector]))
         for name, button in self.server_buttons.items():
             state = self.server_states.get(name)
             button.setEnabled(not self.busy and state is not None)
@@ -166,12 +183,19 @@ class ServerControlWindow(QMainWindow):
             button.clicked.connect(lambda checked=False, name=config.stem: self.toggle_server(name))
             self.server_buttons[config.stem] = button
             self.server_states[config.stem] = None
+            self.group_servers[detector].append(config.stem)
             self.column_layouts[detector].addWidget(button)
         for column in self.column_layouts.values():
             column.addStretch()
         if errors:
             self.output.appendPlainText("\n".join(errors))
         self.statusBar().showMessage(f"{len(self.server_buttons)} configurations loaded — checking local sessions…")
+
+    def run_group(self, action: str, detector: str):
+        names = self.group_servers[detector]
+        # An empty argument list would apply the script to every system.
+        if names:
+            self.run_script(action, names)
 
     def toggle_server(self, name: str):
         state = self.server_states.get(name)
