@@ -32,10 +32,27 @@
 #include <sstream>
 #include <string>
 
+namespace
+{
+std::string InfoValue(const std::string& info, const std::string& key)
+{
+    const std::string prefix = key + "=";
+    std::istringstream input(info);
+    std::string line;
+    while (std::getline(input, line)) {
+        if (line.rfind(prefix, 0) == 0)
+            return line.substr(prefix.size());
+    }
+    return {};
+}
+}
+
 std::string TSuFDeMonGui::SelectedHistogramName() const
 {
     return SuFDeMon::MusicAdcHistogramName(
-        fFieldCageCombo->GetSelected(), fAdcCombo->GetSelected());
+        fConnectedInstance,
+        fFieldCageCombo->GetSelected(),
+        fAdcCombo->GetSelected());
 }
 
 void TSuFDeMonGui::UpdateHistogramName()
@@ -43,13 +60,29 @@ void TSuFDeMonGui::UpdateHistogramName()
     fHistogramEntry->SetText(SelectedHistogramName().c_str());
 }
 
+void TSuFDeMonGui::UpdateServerIdentity(const std::string& info)
+{
+    const std::string type = InfoValue(info, "type");
+    const std::string instance = InfoValue(info, "instance");
+
+    if (!type.empty())
+        fConnectedDetectorType = type;
+    if (!instance.empty())
+        fConnectedInstance = instance;
+
+    UpdateHistogramName();
+}
+
 void TSuFDeMonGui::SetConnectedUi(bool connected)
 {
+    const bool musicConnected =
+        connected && fConnectedDetectorType == "MUSIC";
+
     fConnectButton->SetEnabled(!connected);
     fDisconnectButton->SetEnabled(connected);
-    fDrawButton->SetEnabled(connected);
-    fClearButton->SetEnabled(connected);
-    fClearAllButton->SetEnabled(connected);
+    fDrawButton->SetEnabled(musicConnected);
+    fClearButton->SetEnabled(musicConnected);
+    fClearAllButton->SetEnabled(musicConnected);
     fCloseServerButton->SetEnabled(connected);
     fStatusLabel->SetText(connected ? "Connected" : "Disconnected");
 
@@ -57,10 +90,13 @@ void TSuFDeMonGui::SetConnectedUi(bool connected)
     gClient->GetColorByName(connected ? "green" : "red", statusColor);
     fStatusLabel->SetTextColor(statusColor);
 
-    if (!connected && fUpdateTimer) fUpdateTimer->TurnOff();
+    if (!musicConnected && fUpdateTimer)
+        fUpdateTimer->TurnOff();
+
     if (fConnectionTimer) {
         fConnectionTimer->TurnOff();
-        if (connected) fConnectionTimer->Start(1000, kTRUE);
+        if (connected)
+            fConnectionTimer->Start(1000, kTRUE);
     }
 
     SyncConfiguredServerStates();
@@ -69,13 +105,19 @@ void TSuFDeMonGui::SetConnectedUi(bool connected)
 
 void TSuFDeMonGui::ConnectServer()
 {
-    if (fClient) fClient->Disconnect();
+    if (fClient)
+        fClient->Disconnect();
+
     fClient = std::make_unique<TSuFDeMonClient>(
         fHostEntry->GetText(),
         static_cast<int>(fPortEntry->GetNumber()));
 
     const bool connected = fClient->Connect();
-    if (!connected) fClient.reset();
+    if (!connected) {
+        fClient.reset();
+    } else {
+        UpdateServerIdentity(fClient->Info());
+    }
 
     SetConnectedUi(connected);
     UpdateTimerState();
@@ -83,17 +125,21 @@ void TSuFDeMonGui::ConnectServer()
 
 void TSuFDeMonGui::DisconnectServer()
 {
-    if (fUpdateTimer) fUpdateTimer->TurnOff();
+    if (fUpdateTimer)
+        fUpdateTimer->TurnOff();
+
     if (fClient) {
         fClient->Disconnect();
         fClient.reset();
     }
+
     SetConnectedUi(false);
 }
 
 void TSuFDeMonGui::ConnectConfiguredServer(std::size_t index)
 {
-    if (index >= fServerButtons.size()) return;
+    if (index >= fServerButtons.size())
+        return;
 
     const bool thisServerIsActive =
         fClient && fClient->IsConnected() &&
@@ -107,6 +153,9 @@ void TSuFDeMonGui::ConnectConfiguredServer(std::size_t index)
 
     fHostEntry->SetText(fServerHosts[index].c_str());
     fPortEntry->SetNumber(fServerPorts[index], kFALSE);
+    fConnectedDetectorType = fServerTypes[index];
+    fConnectedInstance = fServerInstances[index];
+    UpdateHistogramName();
 
     DisconnectServer();
     ConnectServer();
@@ -115,9 +164,8 @@ void TSuFDeMonGui::ConnectConfiguredServer(std::size_t index)
 
 void TSuFDeMonGui::RefreshServerConnections()
 {
-    // This view reports the client connections owned by this GUI. It does not
-    // create extra probe sockets, which is important while servers use a
-    // single-client request loop.
+    // The tab reflects connections owned by this GUI. It intentionally does
+    // not open probe sockets because servers currently process one client at a time.
     if (fClient && !fClient->IsConnected()) {
         DisconnectServer();
         return;
@@ -129,7 +177,8 @@ void TSuFDeMonGui::RefreshServerConnections()
 
 void TSuFDeMonGui::UpdateConfiguredServerButton(std::size_t index)
 {
-    if (index >= fServerButtons.size()) return;
+    if (index >= fServerButtons.size())
+        return;
 
     const bool connected = fServerStates[index] > 0;
     const char* stateText =
@@ -170,7 +219,8 @@ void TSuFDeMonGui::SyncConfiguredServerStates()
 
 void TSuFDeMonGui::UpdateServerConnectionsSummary()
 {
-    if (!fServerConnectionsSummaryLabel) return;
+    if (!fServerConnectionsSummaryLabel)
+        return;
 
     const auto connected =
         std::count(fServerStates.begin(), fServerStates.end(), 1);
@@ -193,7 +243,8 @@ void TSuFDeMonGui::UpdateServerConnectionsSummary()
 
 void TSuFDeMonGui::DisplayGeneralStatus()
 {
-    if (!fGeneralStatusLabel) return;
+    if (!fGeneralStatusLabel)
+        return;
 
     const bool connected = fClient && fClient->IsConnected();
     const bool autoUpdate =
@@ -204,6 +255,8 @@ void TSuFDeMonGui::DisplayGeneralStatus()
 
     std::ostringstream status;
     status << "Client: " << (connected ? "Connected" : "Disconnected")
+           << " | Server: " << fConnectedDetectorType
+           << " / " << fConnectedInstance
            << " | Endpoint: " << fHostEntry->GetText()
            << ":" << static_cast<int>(fPortEntry->GetNumber())
            << " | Configured connections: " << configuredConnections
@@ -223,10 +276,13 @@ void TSuFDeMonGui::SelectionChanged(Int_t)
 
 void TSuFDeMonGui::FetchAndDraw()
 {
-    if (!fClient || !fClient->IsConnected()) return;
+    if (!fClient || !fClient->IsConnected() ||
+        fConnectedDetectorType != "MUSIC")
+        return;
 
     auto histogram = fClient->GetHistogram(SelectedHistogramName());
-    if (!histogram) return;
+    if (!histogram)
+        return;
 
     fHistogram = std::move(histogram);
 
@@ -250,7 +306,10 @@ void TSuFDeMonGui::DrawSelected()
 
 void TSuFDeMonGui::ClearSelected()
 {
-    if (!fClient || !fClient->IsConnected()) return;
+    if (!fClient || !fClient->IsConnected() ||
+        fConnectedDetectorType != "MUSIC")
+        return;
+
     if (fClient->ClearHistogram(SelectedHistogramName()))
         FetchAndDraw();
     UpdateTimerState();
@@ -258,7 +317,9 @@ void TSuFDeMonGui::ClearSelected()
 
 void TSuFDeMonGui::ClearAllHistograms()
 {
-    if (!fClient || !fClient->IsConnected()) return;
+    if (!fClient || !fClient->IsConnected())
+        return;
+
     if (fClient->ClearAll())
         FetchAndDraw();
     UpdateTimerState();
@@ -271,7 +332,8 @@ void TSuFDeMonGui::AutoUpdateToggled()
 
 void TSuFDeMonGui::UpdateIntervalChanged()
 {
-    if (!fUpdateIntervalEntry) return;
+    if (!fUpdateIntervalEntry)
+        return;
 
     if (fUpdateIntervalEntry->GetNumber() < 0.2)
         fUpdateIntervalEntry->SetNumber(0.2, kFALSE);
@@ -280,7 +342,8 @@ void TSuFDeMonGui::UpdateIntervalChanged()
 
 void TSuFDeMonGui::UpdateIntervalArrow(Long_t value)
 {
-    if (!fUpdateIntervalEntry || value == 0) return;
+    if (!fUpdateIntervalEntry || value == 0)
+        return;
 
     const double current = fUpdateIntervalEntry->GetNumber();
     const double direction = value > 0 ? 1.0 : -1.0;
@@ -293,7 +356,9 @@ void TSuFDeMonGui::UpdateIntervalArrow(Long_t value)
 
 void TSuFDeMonGui::UpdateTimerState()
 {
-    if (!fUpdateTimer) return;
+    if (!fUpdateTimer)
+        return;
+
     fUpdateTimer->TurnOff();
 
     const bool enabled =
@@ -305,7 +370,10 @@ void TSuFDeMonGui::UpdateTimerState()
         SetConnectedUi(false);
         return;
     }
-    if (!enabled || !fHasDrawnHistogram) return;
+
+    if (fConnectedDetectorType != "MUSIC" ||
+        !enabled || !fHasDrawnHistogram)
+        return;
 
     const double seconds =
         std::max(0.2, fUpdateIntervalEntry->GetNumber());
@@ -316,8 +384,12 @@ void TSuFDeMonGui::UpdateTimerState()
 
 void TSuFDeMonGui::AutoUpdate()
 {
-    if (!fAutoUpdateCheck || !fAutoUpdateCheck->IsOn()) return;
-    if (!fClient || !fClient->IsConnected() || !fHasDrawnHistogram) {
+    if (!fAutoUpdateCheck || !fAutoUpdateCheck->IsOn())
+        return;
+
+    if (!fClient || !fClient->IsConnected() ||
+        fConnectedDetectorType != "MUSIC" ||
+        !fHasDrawnHistogram) {
         UpdateTimerState();
         return;
     }
@@ -337,20 +409,25 @@ void TSuFDeMonGui::CheckConnection()
 
 void TSuFDeMonGui::CloseClient()
 {
-    if (fUpdateTimer) fUpdateTimer->TurnOff();
+    if (fUpdateTimer)
+        fUpdateTimer->TurnOff();
     DisconnectServer();
     if (fCanvas) {
         fCanvas->Close();
         fCanvas = nullptr;
     }
     DeleteWindow();
-    if (gApplication) gApplication->Terminate(0);
+    if (gApplication)
+        gApplication->Terminate(0);
 }
 
 void TSuFDeMonGui::CloseServer()
 {
-    if (!fClient || !fClient->IsConnected()) return;
-    if (fUpdateTimer) fUpdateTimer->TurnOff();
+    if (!fClient || !fClient->IsConnected())
+        return;
+
+    if (fUpdateTimer)
+        fUpdateTimer->TurnOff();
     fClient->ShutdownServer();
     fClient.reset();
     SetConnectedUi(false);
@@ -358,7 +435,8 @@ void TSuFDeMonGui::CloseServer()
 
 void TSuFDeMonGui::CloseAll()
 {
-    if (fUpdateTimer) fUpdateTimer->TurnOff();
+    if (fUpdateTimer)
+        fUpdateTimer->TurnOff();
     if (fClient && fClient->IsConnected())
         fClient->ShutdownServer();
     fClient.reset();
@@ -369,12 +447,14 @@ void TSuFDeMonGui::CloseAll()
     }
 
     DeleteWindow();
-    if (gApplication) gApplication->Terminate(0);
+    if (gApplication)
+        gApplication->Terminate(0);
 }
 
 void TSuFDeMonGui::CloseWindow()
 {
-    if (fUpdateTimer) fUpdateTimer->TurnOff();
+    if (fUpdateTimer)
+        fUpdateTimer->TurnOff();
     DisconnectServer();
     DeleteWindow();
 }
