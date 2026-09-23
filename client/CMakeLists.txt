@@ -37,7 +37,9 @@ ROOT_GENERATE_DICTIONARY(G__SuFDeMonGui
 
 add_executable(SuFDeMonGui
     src/SuFDeMonGui.cxx
-    src/TSuFDeMonGui.cxx
+    src/TSuFDeMonGuiLayout.cxx
+    src/TSuFDeMonGuiServerConnections.cxx
+    src/TSuFDeMonGuiActions.cxx
     ${CMAKE_CURRENT_BINARY_DIR}/G__SuFDeMonGui.cxx
 )
 
