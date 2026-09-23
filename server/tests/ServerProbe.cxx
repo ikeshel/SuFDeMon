@@ -57,8 +57,9 @@ int main(int argc, char** argv)
         const auto list = Request(*socket, "LIST");
         if (type == "MUSIC") {
             Require(std::count(list.begin(), list.end(), '\n') == 96, "MUSIC histogram count changed");
-            Require(list.find("TH1D_MUSIC_ADC_FC3_ADC31\n") != std::string::npos, "Missing MUSIC channel");
-            const std::string name = "TH1D_MUSIC_ADC_FC1_ADC0";
+            Require(list.find(instance + "_TH1D_MUSIC_ADC_FC3_ADC31\n") != std::string::npos,
+                    "Missing MUSIC channel");
+            const std::string name = instance + "_TH1D_MUSIC_ADC_FC1_ADC0";
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             Require(Get(*socket, name)->GetEntries() > 0, "MUSIC not filling");
             Require(Request(*socket, "CLEAR " + name) == "OK", "CLEAR failed");
