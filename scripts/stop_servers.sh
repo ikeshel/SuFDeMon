@@ -16,20 +16,49 @@
 set -euo pipefail
 repo_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 if [[ ${1:-} == --help || ${1:-} == -h ]]; then
-    echo "Usage: $0"
-    echo 'Stops all SuFDeMon-* Screen sessions owned by this user on this machine.'
+    echo "Usage: $0 [MUSIC1 PLSCI2 SCIFI14 ...]"
+    echo 'Stops selected instances, or all SuFDeMon-* sessions when no names are given.'
+    echo 'Only sessions owned by this user on this machine are affected.'
     echo 'Servers started outside these sessions and remote machines are unaffected.'
     exit 0
 fi
-(( $# == 0 )) || { echo "Usage: $0" >&2; exit 1; }
+for name in "$@"; do
+    [[ $name =~ ^[A-Za-z0-9_-]+$ ]] || { echo "Invalid config name: $name" >&2; exit 1; }
+done
 command -v screen >/dev/null || { echo 'GNU Screen is required.' >&2; exit 1; }
 command -v flock >/dev/null || { echo 'flock is required (util-linux).' >&2; exit 1; }
 exec 9>"$repo_dir/.server-screen.lock"
 flock -x 9
 sessions=$(screen -ls 2>/dev/null || true)
 mapfile -t targets < <(awk '$1 ~ /^[0-9]+\.SuFDeMon-[A-Za-z0-9_-]+$/ {print $1}' <<< "$sessions")
+if (( $# )); then
+    selected=()
+    for session in "${targets[@]}"; do
+        for name in "$@"; do
+            if [[ ${session#*.} == "SuFDeMon-$name" ]]; then
+                selected+=("$session")
+                break
+            fi
+        done
+    done
+    for name in "$@"; do
+        found=false
+        for session in "${selected[@]}"; do
+            if [[ ${session#*.} == "SuFDeMon-$name" ]]; then
+                found=true
+                break
+            fi
+        done
+        if [[ $found == false ]]; then
+            echo "Not running: SuFDeMon-$name"
+        fi
+    done
+    targets=("${selected[@]}")
+fi
 if (( ${#targets[@]} == 0 )); then
-    echo 'No SuFDeMon server sessions are running.'
+    if (( $# == 0 )); then
+        echo 'No SuFDeMon server sessions are running.'
+    fi
     exit 0
 fi
 status=0

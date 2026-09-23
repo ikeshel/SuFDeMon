@@ -180,6 +180,10 @@ screen -r SuFDeMon-MUSIC1
 
 # Stop all SuFDeMon-* sessions owned by this user on this PC.
 ./scripts/stop_servers.sh
+
+# Or stop only the named instances.
+./scripts/stop_servers.sh MUSIC1
+./scripts/stop_servers.sh MUSIC2 PLSCI3 SCIFI14
 ```
 
 Session names are `SuFDeMon-<config filename without .conf>`. Existing sessions
@@ -325,4 +329,3 @@ The current MUSIC implementation is intentionally small and provides the foundat
 ## License
 
 SuFDeMon is released under the **GNU General Public License v3.0 (GPL-3.0)**. See `LICENSE` for details.
-
