@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 class TGTextEntry;
 class TGNumberEntry;
@@ -24,6 +25,8 @@ class TGComboBox;
 class TGTextButton;
 class TGCheckButton;
 class TGLabel;
+class TGTab;
+class TGCompositeFrame;
 class TCanvas;
 class TH1D;
 class TTimer;
@@ -33,7 +36,7 @@ class TSuFDeMonGui : public TGMainFrame
 {
 public:
     TSuFDeMonGui(const TGWindow* parent, UInt_t width, UInt_t height,
-                   std::string host = "localhost", int port = 9090);
+                 std::string host = "localhost", int port = 9090);
     ~TSuFDeMonGui() override;
 
     void ConnectServer();
@@ -47,10 +50,13 @@ public:
     void UpdateIntervalArrow(Long_t value);
     void AutoUpdate();
     void CheckConnection();
+    void DisplayGeneralStatus();
+    void RefreshServerConnections();
     void CloseClient();
     void CloseServer();
     void CloseAll();
     void CloseWindow() override;
+    Bool_t ProcessMessage(Longptr_t msg, Longptr_t parm1, Longptr_t parm2) override;
 
     TSuFDeMonClient* GetClient() const { return fClient.get(); }
     TH1D* GetHistogram() const { return fHistogram.get(); }
@@ -61,6 +67,13 @@ private:
     void SetConnectedUi(bool connected);
     void UpdateTimerState();
     void FetchAndDraw();
+    void BuildServerConnectionsTab(TGCompositeFrame* tab);
+    void ConnectConfiguredServer(std::size_t index);
+    void UpdateConfiguredServerButton(std::size_t index);
+    void UpdateServerConnectionsSummary();
+    void SyncConfiguredServerStates();
+
+    TGTab* fTabs = nullptr;
 
     TGTextEntry* fHostEntry = nullptr;
     TGNumberEntry* fPortEntry = nullptr;
@@ -75,9 +88,20 @@ private:
     TGTextButton* fCloseClientButton = nullptr;
     TGTextButton* fCloseServerButton = nullptr;
     TGTextButton* fCloseAllButton = nullptr;
+    TGTextButton* fGeneralStatusButton = nullptr;
+    TGTextButton* fRefreshServerConnectionsButton = nullptr;
     TGCheckButton* fAutoUpdateCheck = nullptr;
     TGNumberEntry* fUpdateIntervalEntry = nullptr;
     TGLabel* fStatusLabel = nullptr;
+    TGLabel* fGeneralStatusLabel = nullptr;
+    TGLabel* fServerConnectionsSummaryLabel = nullptr;
+
+    std::vector<std::string> fServerTypes;
+    std::vector<std::string> fServerInstances;
+    std::vector<std::string> fServerHosts;
+    std::vector<int> fServerPorts;
+    std::vector<int> fServerStates;
+    std::vector<TGTextButton*> fServerButtons;
 
     std::unique_ptr<TSuFDeMonClient> fClient;
     std::unique_ptr<TH1D> fHistogram;
@@ -90,4 +114,3 @@ private:
 };
 
 #endif
-
