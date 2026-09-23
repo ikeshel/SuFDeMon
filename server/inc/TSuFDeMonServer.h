@@ -13,7 +13,10 @@
 #ifndef TSUFDEMONSERVER_H
 #define TSUFDEMONSERVER_H
 
-#include <array>
+#include "SuFDeMonServerConfig.h"
+
+#include <vector>
+#include <mutex>
 #include <memory>
 #include <string>
 #include <atomic>
@@ -28,6 +31,7 @@ class TSuFDeMonServer
 {
 public:
     explicit TSuFDeMonServer(int port);
+    explicit TSuFDeMonServer(SuFDeMon::ServerConfig config);
     ~TSuFDeMonServer();
 
     TSuFDeMonServer(const TSuFDeMonServer&) = delete;
@@ -36,12 +40,6 @@ public:
     int Run();
 
 private:
-    static constexpr int kNFieldCages = 3;
-    static constexpr int kNAdcChannels = 32;
-
-    using HistogramRow = std::array<std::unique_ptr<TH1D>, kNAdcChannels>;
-    using HistogramArray = std::array<HistogramRow, kNFieldCages>;
-
     void CreateHistograms();
     void FillHistograms();
     void FillLoop();
@@ -51,8 +49,9 @@ private:
     TH1D* FindHistogram(const std::string& name);
     std::string HistogramList() const;
 
-    int fPort;
-    HistogramArray fMusicAdc;
+    SuFDeMon::ServerConfig fConfig;
+    std::vector<std::unique_ptr<TH1D>> fHistograms;
+    std::mutex fHistogramMutex;
     std::unique_ptr<TRandom3> fRandom;
     std::unique_ptr<TServerSocket> fServerSocket;
     std::atomic<bool> fFillRunning{false};
@@ -61,3 +60,4 @@ private:
 };
 
 #endif
+

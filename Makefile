@@ -6,12 +6,15 @@ BUILD_TYPE ?= RelWithDebInfo
 
 HOST ?= localhost
 PORT ?= 10001
+TYPE ?= MUSIC
+INSTANCE ?= $(TYPE)1
+CONFIG ?= config/servers/$(INSTANCE).conf
 
 CMAKE ?= cmake
 
 .PHONY: all configure build debug release clean rebuild \
         server client gui run-server run-client run-gui \
-        pull help
+        pull help servers music-server plsci-server scifi-server run-instance
 
 all: build
 
@@ -71,8 +74,26 @@ help:
 	@echo "  make rebuild      Clean and rebuild"
 	@echo "  make pull         Git pull using fast-forward only"
 	@echo ""
+	@echo "  make servers      Build MUSIC, PLSCI and SCIFI servers"
+	@echo "  make run-instance INSTANCE=MUSIC2  Run an instance config"
 	@echo "Variables:"
 	@echo "  BUILD_DIR=build"
 	@echo "  BUILD_TYPE=RelWithDebInfo"
 	@echo "  HOST=localhost"
 	@echo "  PORT=10001"
+
+
+servers: configure
+	$(CMAKE) --build $(BUILD_DIR) --target SuFDeMonMUSICServer SuFDeMonPLSCIServer SuFDeMonSCIFIServer --parallel
+
+music-server: configure
+	$(CMAKE) --build $(BUILD_DIR) --target SuFDeMonMUSICServer --parallel
+
+plsci-server: configure
+	$(CMAKE) --build $(BUILD_DIR) --target SuFDeMonPLSCIServer --parallel
+
+scifi-server: configure
+	$(CMAKE) --build $(BUILD_DIR) --target SuFDeMonSCIFIServer --parallel
+
+run-instance: server
+	./$(BUILD_DIR)/server/SuFDeMonServer --config "$(CONFIG)"

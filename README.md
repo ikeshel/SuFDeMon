@@ -108,6 +108,65 @@ build/client/SuFDeMonClient
 build/client/SuFDeMonGui
 ```
 
+## Detector server types and instances
+
+Three dedicated executables share the server transport and protocol:
+
+| Type | Executable | Example instances | Histogram status |
+| --- | --- | --- | --- |
+| MUSIC | `SuFDeMonMUSICServer` | MUSIC1, MUSIC2 | Existing 3 × 32 simulated ADC histograms |
+| PLSCI | `SuFDeMonPLSCIServer` | PLSCI1, PLSCI2, PLSCI3 | Runnable skeleton; detector definitions pending |
+| SCIFI | `SuFDeMonSCIFIServer` | SCIFI1–SCIFI14 | Runnable skeleton; detector definitions pending |
+
+Build with `make servers` or the normal CMake build. Each process owns its
+histograms independently. Instance names do not change MUSIC histogram names,
+so existing MUSIC clients continue to work.
+
+The files under `config/servers/` define `type`, `instance`, `hostname` and `port`.
+Replace the `.example.invalid` hostnames with real hostnames or IP addresses.
+`hostname` advertises the endpoint in startup output and the `INFO` response;
+it does **not** configure DNS, select a bind address, or start a remote process.
+Servers listen on all local interfaces. Run each command on the corresponding
+server machine:
+
+```bash
+./build/server/SuFDeMonMUSICServer --config config/servers/MUSIC1.conf
+./build/server/SuFDeMonMUSICServer --config config/servers/MUSIC2.conf
+./build/server/SuFDeMonPLSCIServer --config config/servers/PLSCI1.conf
+./build/server/SuFDeMonPLSCIServer --config config/servers/PLSCI2.conf
+./build/server/SuFDeMonPLSCIServer --config config/servers/PLSCI3.conf
+./build/server/SuFDeMonSCIFIServer --config config/servers/SCIFI1.conf
+# Likewise SCIFI2.conf through SCIFI14.conf, each on its readout PC.
+```
+
+Example ports are MUSIC `10001–10002`, PLSCI `10101–10103`, and SCIFI
+`10201–10214`; each can be changed independently. The same port also works on
+different machines. For multiple processes on
+one machine, assign distinct ports. Command-line options override config values:
+
+```bash
+./build/server/SuFDeMonMUSICServer --config config/servers/MUSIC2.conf --hostname localhost --port 10002
+make run-instance INSTANCE=PLSCI3
+```
+
+`SuFDeMonServer` is also a generic entry point, retaining the old `[port]` syntax
+(default MUSIC1), and accepting `--type`, `--instance`, `--hostname`, `--port`
+and `--config`. Dedicated executables reject configs for another detector type.
+Use `--help` for syntax. Copy a config and change its instance and hostname to
+add more instances; the counts are not hardcoded.
+
+PLSCI and SCIFI support `INFO`, `PING`, `LIST`, `GET`, `CLEAR`, `CLEAR ALL`,
+`QUIT` and `SHUTDOWN`, but return an empty histogram list until their definitions
+are implemented. No detector channels or physics data have been invented.
+The current GUI remains MUSIC-specific; its host/port fields select a MUSIC
+instance. A detector-specific GUI for PLSCI/SCIFI is future work.
+
+### Server checks
+
+With testing enabled (the default), run `ctest --test-dir build --output-on-failure`.
+The integration test launches all 19 example instances locally on separate
+ports, checks their identity and histogram behavior, and shuts them down.
+
 ## Running the server
 
 The default TCP port is **10001**.
@@ -191,12 +250,14 @@ The returned histogram is a ROOT object, so standard ROOT operations can be used
 The current lightweight command protocol supports:
 
 ```text
+INFO
 PING
 LIST
 GET <histogram-name>
 CLEAR <histogram-name>
 CLEAR ALL
 QUIT
+SHUTDOWN
 ```
 
 Histogram objects are transferred using ROOT serialization.
@@ -231,3 +292,4 @@ The current MUSIC implementation is intentionally small and provides the foundat
 ## License
 
 SuFDeMon is released under the **GNU General Public License v3.0 (GPL-3.0)**. See `LICENSE` for details.
+

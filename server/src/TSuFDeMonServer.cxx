@@ -25,6 +25,7 @@
 #include <sstream>
 #include <string>
 #include <chrono>
+#include <utility>
 
 namespace {
 
@@ -42,9 +43,15 @@ void SendText(TSocket& socket, const std::string& text)
 } // namespace
 
 TSuFDeMonServer::TSuFDeMonServer(int port)
-    : fPort(port),
+    : TSuFDeMonServer(SuFDeMon::ServerConfig{SuFDeMon::DetectorType::MUSIC, "MUSIC1", "localhost", port})
+{
+}
+
+TSuFDeMonServer::TSuFDeMonServer(SuFDeMon::ServerConfig config)
+    : fConfig(std::move(config)),
       fRandom(std::make_unique<TRandom3>(0))
 {
+    SuFDeMon::ValidateServerConfig(fConfig);
     CreateHistograms();
 }
 
@@ -57,6 +64,8 @@ TSuFDeMonServer::~TSuFDeMonServer()
 
 void TSuFDeMonServer::CreateHistograms()
 {
+    // PLSCI and SCIFI histogram definitions will be added with detector requirements.
+    if (fConfig.type != SuFDeMon::DetectorType::MUSIC) return;
     for (int fc = 1; fc <= SuFDeMon::kNFieldCages; ++fc) {
         for (int adc = 0; adc < SuFDeMon::kNAdcChannels; ++adc) {
             const std::string name = SuFDeMon::MusicAdcHistogramName(fc, adc);
@@ -64,22 +73,22 @@ void TSuFDeMonServer::CreateHistograms()
                                     + " ADC" + std::to_string(adc)
                                     + ";ADC value;Counts";
 
-            fMusicAdc[fc - 1][adc] =
-                std::make_unique<TH1D>(name.c_str(), title.c_str(), 4096, 0.0, 4096.0);
-
-            fMusicAdc[fc - 1][adc]->SetDirectory(nullptr);
+            auto histogram = std::make_unique<TH1D>(name.c_str(), title.c_str(), 4096, 0.0, 4096.0);
+            histogram->SetDirectory(nullptr);
+            fHistograms.push_back(std::move(histogram));
         }
     }
 }
 
 void TSuFDeMonServer::FillHistograms()
 {
-    for (int fc = 0; fc < kNFieldCages; ++fc) {
-        for (int adc = 0; adc < kNAdcChannels; ++adc) {
-            const double mean = 1500.0 + 250.0 * fc + 5.0 * adc;
-            const double sigma = 120.0 + 10.0 * fc;
-            fMusicAdc[fc][adc]->Fill(fRandom->Gaus(mean, sigma));
-        }
+    std::lock_guard<std::mutex> lock(fHistogramMutex);
+    for (std::size_t i = 0; i < fHistograms.size(); ++i) {
+        const auto fc = i / SuFDeMon::kNAdcChannels;
+        const auto adc = i % SuFDeMon::kNAdcChannels;
+        const double mean = 1500.0 + 250.0 * fc + 5.0 * adc;
+        const double sigma = 120.0 + 10.0 * fc;
+        fHistograms[i]->Fill(fRandom->Gaus(mean, sigma));
     }
 }
 
@@ -95,12 +104,8 @@ void TSuFDeMonServer::FillLoop()
 
 TH1D* TSuFDeMonServer::FindHistogram(const std::string& name)
 {
-    for (auto& fieldCage : fMusicAdc) {
-        for (auto& histogram : fieldCage) {
-            if (name == histogram->GetName()) {
-                return histogram.get();
-            }
-        }
+    for (auto& histogram : fHistograms) {
+        if (name == histogram->GetName()) return histogram.get();
     }
 
     return nullptr;
@@ -110,10 +115,8 @@ std::string TSuFDeMonServer::HistogramList() const
 {
     std::ostringstream output;
 
-    for (const auto& fieldCage : fMusicAdc) {
-        for (const auto& histogram : fieldCage) {
-            output << histogram->GetName() << '\n';
-        }
+    for (const auto& histogram : fHistograms) {
+        output << histogram->GetName() << '\n';
     }
 
     return output.str();
@@ -121,6 +124,13 @@ std::string TSuFDeMonServer::HistogramList() const
 
 bool TSuFDeMonServer::HandleCommand(TSocket& socket, const std::string& command)
 {
+    if (command == SuFDeMon::Protocol::kInfo) {
+        SendText(socket, std::string("type=") + SuFDeMon::DetectorTypeName(fConfig.type)
+            + "\ninstance=" + fConfig.instance + "\nhostname=" + fConfig.hostname
+            + "\nport=" + std::to_string(fConfig.port) + "\n");
+        return true;
+    }
+
     if (command == SuFDeMon::Protocol::kPing) {
         SendText(socket, "PONG");
         return true;
@@ -132,10 +142,9 @@ bool TSuFDeMonServer::HandleCommand(TSocket& socket, const std::string& command)
     }
 
     if (command == SuFDeMon::Protocol::kClearAll) {
-        for (auto& fieldCage : fMusicAdc) {
-            for (auto& histogram : fieldCage) {
-                histogram->Reset();
-            }
+        {
+            std::lock_guard<std::mutex> lock(fHistogramMutex);
+            for (auto& histogram : fHistograms) histogram->Reset();
         }
 
         SendText(socket, "OK");
@@ -153,7 +162,10 @@ bool TSuFDeMonServer::HandleCommand(TSocket& socket, const std::string& command)
         }
 
         TMessage message(kMESS_OBJECT);
-        message.WriteObject(histogram);
+        {
+            std::lock_guard<std::mutex> lock(fHistogramMutex);
+            message.WriteObject(histogram);
+        }
         socket.Send(message);
         return true;
     }
@@ -168,7 +180,10 @@ bool TSuFDeMonServer::HandleCommand(TSocket& socket, const std::string& command)
             return true;
         }
 
-        histogram->Reset();
+        {
+            std::lock_guard<std::mutex> lock(fHistogramMutex);
+            histogram->Reset();
+        }
         SendText(socket, "OK");
         return true;
     }
@@ -216,20 +231,25 @@ bool TSuFDeMonServer::HandleClient(TSocket& socket)
 
 int TSuFDeMonServer::Run()
 {
-    fServerSocket = std::make_unique<TServerSocket>(fPort, true);
+    fServerSocket = std::make_unique<TServerSocket>(fConfig.port, true);
 
     if (!fServerSocket->IsValid()) {
-        std::cerr << "Failed to open server socket on port " << fPort << std::endl;
+        std::cerr << "Failed to open server socket on port " << fConfig.port << std::endl;
         return 1;
     }
 
-    std::cout << "SuFDeMon server listening on port " << fPort << std::endl;
-    std::cout << "Created " << kNFieldCages * kNAdcChannels
-              << " MUSIC ADC histograms." << std::endl;
+    std::cout << SuFDeMon::DetectorTypeName(fConfig.type) << " instance " << fConfig.instance
+              << " listening on all local interfaces, port " << fConfig.port << std::endl;
+    std::cout << "Advertised endpoint: " << fConfig.hostname << ':' << fConfig.port << std::endl;
+    std::cout << "Created " << fHistograms.size() << " histograms." << std::endl;
 
-    fFillRunning = true;
-    fFillThread = std::thread(&TSuFDeMonServer::FillLoop, this);
-    std::cout << "Continuous simulated data filling started at ~100 Hz." << std::endl;
+    if (!fHistograms.empty()) {
+        fFillRunning = true;
+        fFillThread = std::thread(&TSuFDeMonServer::FillLoop, this);
+        std::cout << "Continuous simulated data filling started at ~100 Hz." << std::endl;
+    } else {
+        std::cout << "Server skeleton: detector histogram definitions are pending." << std::endl;
+    }
 
     fServerRunning = true;
     while (fServerRunning) {
@@ -253,3 +273,4 @@ int TSuFDeMonServer::Run()
     std::cout << "SuFDeMon server stopped." << std::endl;
     return 0;
 }
+

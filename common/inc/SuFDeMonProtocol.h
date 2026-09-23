@@ -19,6 +19,7 @@ namespace SuFDeMon::Protocol {
 
 inline constexpr int kDefaultPort = 10001;
 
+inline constexpr std::string_view kInfo = "INFO";
 inline constexpr std::string_view kPing = "PING";
 inline constexpr std::string_view kList = "LIST";
 inline constexpr std::string_view kGet = "GET";
@@ -30,3 +31,4 @@ inline constexpr std::string_view kShutdown = "SHUTDOWN";
 } // namespace SuFDeMon::Protocol
 
 #endif
+

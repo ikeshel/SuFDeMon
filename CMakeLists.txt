@@ -8,6 +8,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(ROOT REQUIRED COMPONENTS Core RIO Net Hist Graf Gpad Rint Gui)
 
+include(CTest)
+
 add_subdirectory(common)
 add_subdirectory(server)
 add_subdirectory(client)
