@@ -1,6 +1,6 @@
-# SupFDetMon
+# SuFDeMon
 
-**SupFDetMon** is a C++/CERN ROOT based client-server application for monitoring detectors of the **Super-FRS**.
+**SuFDeMon** is a C++/CERN ROOT based client-server application for monitoring detectors of the **Super-FRS**.
 
 The project provides a ROOT network server that owns detector histograms and remote clients that can retrieve, display, refresh, and clear those histograms. Both an interactive ROOT command-line client and a ROOT GUI client are provided.
 
@@ -30,7 +30,7 @@ The project provides a ROOT network server that owns detector histograms and rem
                          ROOT socket connection
 +------------------+    <---------------------->    +------------------+
 |                  |                               |                  |
-| SupFDetMonServer |                               | SupFDetMonClient |
+| SuFDeMonServer |                               | SuFDeMonClient |
 |                  |                               |                  |
 | owns/fills TH1D  |                               | ROOT / TRint CLI |
 +------------------+                               +------------------+
@@ -39,7 +39,7 @@ The project provides a ROOT network server that owns detector histograms and rem
         | ROOT socket connection                    
         v                                           
 +------------------+       +------------------+
-| SupFDetMon GUI   | ----> | ROOT TCanvas     |
+| SuFDeMon GUI   | ----> | ROOT TCanvas     |
 |                  |       |                  |
 | connection       |       | histogram view   |
 | selection        |       +------------------+
@@ -53,7 +53,7 @@ The server owns the authoritative histogram objects. Clients receive serialized 
 ## Repository layout
 
 ```text
-SupFDetMon/
+SuFDeMon/
 ├── common/     Shared protocol, messages, detector names and constants
 ├── server/     ROOT histogram server
 ├── client/     Interactive client and ROOT GUI client
@@ -89,8 +89,8 @@ source /path/to/root/bin/thisroot.sh
 Clone the repository:
 
 ```bash
-git clone git@github.com:ikeshel/SupFDetMon.git
-cd SupFDetMon
+git clone git@github.com:ikeshel/SuFDeMon.git
+cd SuFDeMon
 ```
 
 Configure and build:
@@ -103,9 +103,9 @@ cmake --build build -j$(nproc)
 The main executables are then located at:
 
 ```text
-build/server/SupFDetMonServer
-build/client/SupFDetMonClient
-build/client/SupFDetMonGui
+build/server/SuFDeMonServer
+build/client/SuFDeMonClient
+build/client/SuFDeMonGui
 ```
 
 ## Running the server
@@ -115,13 +115,13 @@ The default TCP port is **10001**.
 Start the server with:
 
 ```bash
-./build/server/SupFDetMonServer
+./build/server/SuFDeMonServer
 ```
 
 or specify a port explicitly:
 
 ```bash
-./build/server/SupFDetMonServer 10001
+./build/server/SuFDeMonServer 10001
 ```
 
 For the current MUSIC prototype the server creates 96 histograms using names such as:
@@ -140,7 +140,7 @@ The prototype server fills these histograms with simulated data.
 With the server running:
 
 ```bash
-./build/client/SupFDetMonGui localhost 10001
+./build/client/SuFDeMonGui localhost 10001
 ```
 
 The GUI attempts to connect automatically using the host and port supplied on the command line. If the connection is unavailable, the GUI remains open and the connection can be retried manually.
@@ -168,20 +168,20 @@ The GUI application also runs `TRint`, so the normal interactive ROOT prompt rem
 The command-line client can be started with:
 
 ```bash
-./build/client/SupFDetMonClient localhost 10001
+./build/client/SuFDeMonClient localhost 10001
 ```
 
-It provides a normal ROOT prompt with SupFDetMon helper functions. For example:
+It provides a normal ROOT prompt with SuFDeMon helper functions. For example:
 
 ```cpp
-root [0] SupFDetMonPing()
-root [1] SupFDetMonList()
-root [2] TH1D* h = SupFDetMonGet("TH1D_MUSIC_ADC_FC1_ADC0")
+root [0] SuFDeMonPing()
+root [1] SuFDeMonList()
+root [2] TH1D* h = SuFDeMonGet("TH1D_MUSIC_ADC_FC1_ADC0")
 root [3] h->Draw()
 root [4] h->GetEntries()
 root [5] h->GetMean()
-root [6] SupFDetMonClear("TH1D_MUSIC_ADC_FC1_ADC0")
-root [7] SupFDetMonClearAll()
+root [6] SuFDeMonClear("TH1D_MUSIC_ADC_FC1_ADC0")
+root [7] SuFDeMonClearAll()
 ```
 
 The returned histogram is a ROOT object, so standard ROOT operations can be used on it.
@@ -224,10 +224,10 @@ Shared detector constants and naming helpers are kept under `common/` so that th
 
 ## Development direction
 
-SupFDetMon is being developed toward a general Super-FRS detector monitoring application. Planned work includes integration of real detector data sources, support for additional detector systems, richer histogram selection and organization, multi-histogram displays, and improved online monitoring controls.
+SuFDeMon is being developed toward a general Super-FRS detector monitoring application. Planned work includes integration of real detector data sources, support for additional detector systems, richer histogram selection and organization, multi-histogram displays, and improved online monitoring controls.
 
 The current MUSIC implementation is intentionally small and provides the foundation for those extensions.
 
 ## License
 
-SupFDetMon is released under the **GNU General Public License v3.0 (GPL-3.0)**. See `LICENSE` for details.
+SuFDeMon is released under the **GNU General Public License v3.0 (GPL-3.0)**. See `LICENSE` for details.

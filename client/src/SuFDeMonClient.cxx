@@ -1,6 +1,6 @@
 // Author: Irakli Keshelashvili, 2026
 //
-// SupFDetMon - Super-FRS Detector Monitoring Software
+// SuFDeMon - Super-FRS Detector Monitoring Software
 //
 // Copyright (C) 2026 Irakli Keshelashvili
 //
@@ -10,8 +10,8 @@
 //
 // See the LICENSE file in the project root for the full license text.
 
-#include "TSupFDetMonClient.h"
-#include "SupFDetMonProtocol.h"
+#include "TSuFDeMonClient.h"
+#include "SuFDeMonProtocol.h"
 
 #include <TH1D.h>
 #include <TInterpreter.h>
@@ -22,40 +22,40 @@
 #include <string>
 
 namespace {
-std::unique_ptr<TSupFDetMonClient> gClient;
+std::unique_ptr<TSuFDeMonClient> gClient;
 std::unique_ptr<TH1D> gHistogram;
 }
 
-bool SupFDetMonPing()
+bool SuFDeMonPing()
 {
     return gClient && gClient->Ping();
 }
 
-void SupFDetMonList()
+void SuFDeMonList()
 {
     if (gClient) std::cout << gClient->ListHistograms();
 }
 
-TH1D* SupFDetMonGet(const char* name)
+TH1D* SuFDeMonGet(const char* name)
 {
     if (!gClient) return nullptr;
     gHistogram = gClient->GetHistogram(name);
     return gHistogram.get();
 }
 
-TH1D* SupFDetMonDraw(const char* name)
+TH1D* SuFDeMonDraw(const char* name)
 {
-    TH1D* histogram = SupFDetMonGet(name);
+    TH1D* histogram = SuFDeMonGet(name);
     if (histogram) histogram->Draw();
     return histogram;
 }
 
-bool SupFDetMonClear(const char* name)
+bool SuFDeMonClear(const char* name)
 {
     return gClient && gClient->ClearHistogram(name);
 }
 
-bool SupFDetMonClearAll()
+bool SuFDeMonClearAll()
 {
     return gClient && gClient->ClearAll();
 }
@@ -63,7 +63,7 @@ bool SupFDetMonClearAll()
 int main(int argc, char** argv)
 {
     std::string host = "localhost";
-    int port = SupFDetMon::Protocol::kDefaultPort;
+    int port = SuFDeMon::Protocol::kDefaultPort;
 
     // Consume our host/port arguments before TRint sees its own ROOT options.
     if (argc >= 2 && argv[1][0] != '-') host = argv[1];
@@ -78,30 +78,30 @@ int main(int argc, char** argv)
 
     int rootArgc = 1;
     char* rootArgv[] = {argv[0], nullptr};
-    TRint application("SupFDetMonClient", &rootArgc, rootArgv);
+    TRint application("SuFDeMonClient", &rootArgc, rootArgv);
 
-    gClient = std::make_unique<TSupFDetMonClient>(host, port);
+    gClient = std::make_unique<TSuFDeMonClient>(host, port);
     if (!gClient->Connect()) return 1;
 
     gInterpreter->Declare(R"(
         class TH1D;
-        bool SupFDetMonPing();
-        void SupFDetMonList();
-        TH1D* SupFDetMonGet(const char*);
-        TH1D* SupFDetMonDraw(const char*);
-        bool SupFDetMonClear(const char*);
-        bool SupFDetMonClearAll();
+        bool SuFDeMonPing();
+        void SuFDeMonList();
+        TH1D* SuFDeMonGet(const char*);
+        TH1D* SuFDeMonDraw(const char*);
+        bool SuFDeMonClear(const char*);
+        bool SuFDeMonClearAll();
     )");
 
-    std::cout << "\nSupFDetMon connected to " << host << ':' << port << "\n"
+    std::cout << "\nSuFDeMon connected to " << host << ':' << port << "\n"
               << "ROOT prompt is active. Normal ROOT/C++ commands work here.\n"
-              << "SupFDetMon helpers:\n"
-              << "  SupFDetMonPing()\n"
-              << "  SupFDetMonList()\n"
-              << "  TH1D* h = SupFDetMonGet(\"TH1D_MUSIC_ADC_FC1_ADC0\")\n"
-              << "  SupFDetMonDraw(\"TH1D_MUSIC_ADC_FC1_ADC0\")\n"
-              << "  SupFDetMonClear(\"TH1D_MUSIC_ADC_FC1_ADC0\")\n"
-              << "  SupFDetMonClearAll()\n\n";
+              << "SuFDeMon helpers:\n"
+              << "  SuFDeMonPing()\n"
+              << "  SuFDeMonList()\n"
+              << "  TH1D* h = SuFDeMonGet(\"TH1D_MUSIC_ADC_FC1_ADC0\")\n"
+              << "  SuFDeMonDraw(\"TH1D_MUSIC_ADC_FC1_ADC0\")\n"
+              << "  SuFDeMonClear(\"TH1D_MUSIC_ADC_FC1_ADC0\")\n"
+              << "  SuFDeMonClearAll()\n\n";
 
     application.Run();
 

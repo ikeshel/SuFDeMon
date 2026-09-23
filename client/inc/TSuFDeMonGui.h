@@ -1,6 +1,6 @@
 // Author: Irakli Keshelashvili, 2026
 //
-// SupFDetMon - Super-FRS Detector Monitoring Software
+// SuFDeMon - Super-FRS Detector Monitoring Software
 //
 // Copyright (C) 2026 Irakli Keshelashvili
 //
@@ -10,8 +10,8 @@
 //
 // See the LICENSE file in the project root for the full license text.
 
-#ifndef TSUPFDETMONGUI_H
-#define TSUPFDETMONGUI_H
+#ifndef TSUFDEMONGUI_H
+#define TSUFDEMONGUI_H
 
 #include <TGFrame.h>
 
@@ -27,14 +27,14 @@ class TGLabel;
 class TCanvas;
 class TH1D;
 class TTimer;
-class TSupFDetMonClient;
+class TSuFDeMonClient;
 
-class TSupFDetMonGui : public TGMainFrame
+class TSuFDeMonGui : public TGMainFrame
 {
 public:
-    TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t height,
+    TSuFDeMonGui(const TGWindow* parent, UInt_t width, UInt_t height,
                    std::string host = "localhost", int port = 9090);
-    ~TSupFDetMonGui() override;
+    ~TSuFDeMonGui() override;
 
     void ConnectServer();
     void DisconnectServer();
@@ -51,7 +51,7 @@ public:
     void CloseAll();
     void CloseWindow() override;
 
-    TSupFDetMonClient* GetClient() const { return fClient.get(); }
+    TSuFDeMonClient* GetClient() const { return fClient.get(); }
     TH1D* GetHistogram() const { return fHistogram.get(); }
 
 private:
@@ -78,13 +78,13 @@ private:
     TGNumberEntry* fUpdateIntervalEntry = nullptr;
     TGLabel* fStatusLabel = nullptr;
 
-    std::unique_ptr<TSupFDetMonClient> fClient;
+    std::unique_ptr<TSuFDeMonClient> fClient;
     std::unique_ptr<TH1D> fHistogram;
     TCanvas* fCanvas = nullptr;
     TTimer* fUpdateTimer = nullptr;
     bool fHasDrawnHistogram = false;
 
-    ClassDefOverride(TSupFDetMonGui, 0);
+    ClassDefOverride(TSuFDeMonGui, 0);
 };
 
 #endif

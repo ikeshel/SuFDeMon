@@ -1,6 +1,6 @@
 // Author: Irakli Keshelashvili, 2026
 //
-// SupFDetMon - Super-FRS Detector Monitoring Software
+// SuFDeMon - Super-FRS Detector Monitoring Software
 //
 // Copyright (C) 2026 Irakli Keshelashvili
 //
@@ -10,10 +10,10 @@
 //
 // See the LICENSE file in the project root for the full license text.
 
-#include "TSupFDetMonGui.h"
+#include "TSuFDeMonGui.h"
 
-#include "SupFDetMonNames.h"
-#include "TSupFDetMonClient.h"
+#include "SuFDeMonNames.h"
+#include "TSuFDeMonClient.h"
 
 #include <TCanvas.h>
 #include <TApplication.h>
@@ -31,14 +31,14 @@
 #include <cmath>
 #include <string>
 
-ClassImp(TSupFDetMonGui)
+ClassImp(TSuFDeMonGui)
 
-TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t height,
+TSuFDeMonGui::TSuFDeMonGui(const TGWindow* parent, UInt_t width, UInt_t height,
                                std::string host, int port)
     : TGMainFrame(parent, width, height)
 {
     SetCleanup(kDeepCleanup);
-    SetWindowName("SupFDetMon Controls");
+    SetWindowName("SuFDeMon Controls");
 
     // Connection controls. Put the widgets in a vertical wrapper so the
     // complete Host/Port/button/status row is centered inside the group box.
@@ -79,7 +79,7 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     auto* fcRow = new TGHorizontalFrame(controls);
     fcRow->AddFrame(new TGLabel(fcRow, "Field Cage:"), new TGLayoutHints(kLHintsCenterY, 2, 8, 4, 4));
     fFieldCageCombo = new TGComboBox(fcRow);
-    for (int fc = 1; fc <= SupFDetMon::kNFieldCages; ++fc)
+    for (int fc = 1; fc <= SuFDeMon::kNFieldCages; ++fc)
         fFieldCageCombo->AddEntry(("FC" + std::to_string(fc)).c_str(), fc);
     fFieldCageCombo->Select(1);
     fFieldCageCombo->Resize(160, 24);
@@ -89,7 +89,7 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     auto* adcRow = new TGHorizontalFrame(controls);
     adcRow->AddFrame(new TGLabel(adcRow, "ADC Channel:"), new TGLayoutHints(kLHintsCenterY, 2, 8, 4, 4));
     fAdcCombo = new TGComboBox(adcRow);
-    for (int adc = 0; adc < SupFDetMon::kNAdcChannels; ++adc)
+    for (int adc = 0; adc < SuFDeMon::kNAdcChannels; ++adc)
         fAdcCombo->AddEntry(("ADC" + std::to_string(adc)).c_str(), adc);
     fAdcCombo->Select(0);
     fAdcCombo->Resize(160, 24);
@@ -145,24 +145,24 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
     // restarted after every refresh, so changing the interval takes effect cleanly.
     fUpdateTimer = new TTimer(1000, kTRUE);
 
-    fConnectButton->Connect("Clicked()", "TSupFDetMonGui", this, "ConnectServer()");
-    fDisconnectButton->Connect("Clicked()", "TSupFDetMonGui", this, "DisconnectServer()");
-    fFieldCageCombo->Connect("Selected(Int_t)", "TSupFDetMonGui", this, "SelectionChanged(Int_t)");
-    fAdcCombo->Connect("Selected(Int_t)", "TSupFDetMonGui", this, "SelectionChanged(Int_t)");
-    fDrawButton->Connect("Clicked()", "TSupFDetMonGui", this, "DrawSelected()");
-    fClearButton->Connect("Clicked()", "TSupFDetMonGui", this, "ClearSelected()");
-    fClearAllButton->Connect("Clicked()", "TSupFDetMonGui", this, "ClearAllHistograms()");
-    fCloseClientButton->Connect("Clicked()", "TSupFDetMonGui", this, "CloseClient()");
-    fCloseServerButton->Connect("Clicked()", "TSupFDetMonGui", this, "CloseServer()");
-    fCloseAllButton->Connect("Clicked()", "TSupFDetMonGui", this, "CloseAll()");
-    fAutoUpdateCheck->Connect("Toggled(Bool_t)", "TSupFDetMonGui", this, "AutoUpdateToggled()");
+    fConnectButton->Connect("Clicked()", "TSuFDeMonGui", this, "ConnectServer()");
+    fDisconnectButton->Connect("Clicked()", "TSuFDeMonGui", this, "DisconnectServer()");
+    fFieldCageCombo->Connect("Selected(Int_t)", "TSuFDeMonGui", this, "SelectionChanged(Int_t)");
+    fAdcCombo->Connect("Selected(Int_t)", "TSuFDeMonGui", this, "SelectionChanged(Int_t)");
+    fDrawButton->Connect("Clicked()", "TSuFDeMonGui", this, "DrawSelected()");
+    fClearButton->Connect("Clicked()", "TSuFDeMonGui", this, "ClearSelected()");
+    fClearAllButton->Connect("Clicked()", "TSuFDeMonGui", this, "ClearAllHistograms()");
+    fCloseClientButton->Connect("Clicked()", "TSuFDeMonGui", this, "CloseClient()");
+    fCloseServerButton->Connect("Clicked()", "TSuFDeMonGui", this, "CloseServer()");
+    fCloseAllButton->Connect("Clicked()", "TSuFDeMonGui", this, "CloseAll()");
+    fAutoUpdateCheck->Connect("Toggled(Bool_t)", "TSuFDeMonGui", this, "AutoUpdateToggled()");
     // Route the arrow buttons to the parent instead of letting TGNumberEntry
     // apply its built-in 0.01 step. ProcessMessage() receives +1/-1 and the
     // ValueChanged signal below turns that into an exact 0.2 s step.
     fUpdateIntervalEntry->SetButtonToNum(kTRUE);
-    fUpdateIntervalEntry->Connect("ValueChanged(Long_t)", "TSupFDetMonGui", this, "UpdateIntervalArrow(Long_t)");
-    fUpdateIntervalEntry->Connect("ValueSet(Long_t)", "TSupFDetMonGui", this, "UpdateIntervalChanged()");
-    fUpdateTimer->Connect("Timeout()", "TSupFDetMonGui", this, "AutoUpdate()");
+    fUpdateIntervalEntry->Connect("ValueChanged(Long_t)", "TSuFDeMonGui", this, "UpdateIntervalArrow(Long_t)");
+    fUpdateIntervalEntry->Connect("ValueSet(Long_t)", "TSuFDeMonGui", this, "UpdateIntervalChanged()");
+    fUpdateTimer->Connect("Timeout()", "TSuFDeMonGui", this, "AutoUpdate()");
 
     UpdateHistogramName();
     SetConnectedUi(false);
@@ -187,7 +187,7 @@ TSupFDetMonGui::TSupFDetMonGui(const TGWindow* parent, UInt_t width, UInt_t heig
         DrawSelected();
 }
 
-TSupFDetMonGui::~TSupFDetMonGui()
+TSuFDeMonGui::~TSuFDeMonGui()
 {
     if (fUpdateTimer) {
         fUpdateTimer->TurnOff();
@@ -197,17 +197,17 @@ TSupFDetMonGui::~TSupFDetMonGui()
     if (fClient) fClient->Disconnect();
 }
 
-std::string TSupFDetMonGui::SelectedHistogramName() const
+std::string TSuFDeMonGui::SelectedHistogramName() const
 {
-    return SupFDetMon::MusicAdcHistogramName(fFieldCageCombo->GetSelected(), fAdcCombo->GetSelected());
+    return SuFDeMon::MusicAdcHistogramName(fFieldCageCombo->GetSelected(), fAdcCombo->GetSelected());
 }
 
-void TSupFDetMonGui::UpdateHistogramName()
+void TSuFDeMonGui::UpdateHistogramName()
 {
     fHistogramEntry->SetText(SelectedHistogramName().c_str());
 }
 
-void TSupFDetMonGui::SetConnectedUi(bool connected)
+void TSuFDeMonGui::SetConnectedUi(bool connected)
 {
     fConnectButton->SetEnabled(!connected);
     fDisconnectButton->SetEnabled(connected);
@@ -226,10 +226,10 @@ void TSupFDetMonGui::SetConnectedUi(bool connected)
     Layout();
 }
 
-void TSupFDetMonGui::ConnectServer()
+void TSuFDeMonGui::ConnectServer()
 {
     if (fClient) fClient->Disconnect();
-    fClient = std::make_unique<TSupFDetMonClient>(fHostEntry->GetText(),
+    fClient = std::make_unique<TSuFDeMonClient>(fHostEntry->GetText(),
                                                   static_cast<int>(fPortEntry->GetNumber()));
     const bool connected = fClient->Connect();
     if (!connected) fClient.reset();
@@ -237,7 +237,7 @@ void TSupFDetMonGui::ConnectServer()
     UpdateTimerState();
 }
 
-void TSupFDetMonGui::DisconnectServer()
+void TSuFDeMonGui::DisconnectServer()
 {
     if (fUpdateTimer) fUpdateTimer->TurnOff();
     if (fClient) {
@@ -247,12 +247,12 @@ void TSupFDetMonGui::DisconnectServer()
     SetConnectedUi(false);
 }
 
-void TSupFDetMonGui::SelectionChanged(Int_t)
+void TSuFDeMonGui::SelectionChanged(Int_t)
 {
     UpdateHistogramName();
 }
 
-void TSupFDetMonGui::FetchAndDraw()
+void TSuFDeMonGui::FetchAndDraw()
 {
     if (!fClient || !fClient->IsConnected()) return;
 
@@ -263,7 +263,7 @@ void TSupFDetMonGui::FetchAndDraw()
     fHistogram = std::move(histogram);
 
     if (!fCanvas)
-        fCanvas = new TCanvas("SupFDetMonCanvas", "SupFDetMon Histogram", 1000, 700);
+        fCanvas = new TCanvas("SuFDeMonCanvas", "SuFDeMon Histogram", 1000, 700);
 
     fCanvas->cd();
     fCanvas->Clear();
@@ -273,13 +273,13 @@ void TSupFDetMonGui::FetchAndDraw()
     fHasDrawnHistogram = true;
 }
 
-void TSupFDetMonGui::DrawSelected()
+void TSuFDeMonGui::DrawSelected()
 {
     FetchAndDraw();
     UpdateTimerState();
 }
 
-void TSupFDetMonGui::ClearSelected()
+void TSuFDeMonGui::ClearSelected()
 {
     if (!fClient || !fClient->IsConnected()) return;
     if (fClient->ClearHistogram(SelectedHistogramName()))
@@ -287,7 +287,7 @@ void TSupFDetMonGui::ClearSelected()
     UpdateTimerState();
 }
 
-void TSupFDetMonGui::ClearAllHistograms()
+void TSuFDeMonGui::ClearAllHistograms()
 {
     if (!fClient || !fClient->IsConnected()) return;
     if (fClient->ClearAll())
@@ -295,12 +295,12 @@ void TSupFDetMonGui::ClearAllHistograms()
     UpdateTimerState();
 }
 
-void TSupFDetMonGui::AutoUpdateToggled()
+void TSuFDeMonGui::AutoUpdateToggled()
 {
     UpdateTimerState();
 }
 
-void TSupFDetMonGui::UpdateIntervalChanged()
+void TSuFDeMonGui::UpdateIntervalChanged()
 {
     if (!fUpdateIntervalEntry) return;
 
@@ -310,7 +310,7 @@ void TSupFDetMonGui::UpdateIntervalChanged()
     UpdateTimerState();
 }
 
-void TSupFDetMonGui::UpdateIntervalArrow(Long_t value)
+void TSuFDeMonGui::UpdateIntervalArrow(Long_t value)
 {
     if (!fUpdateIntervalEntry || value == 0) return;
 
@@ -321,7 +321,7 @@ void TSupFDetMonGui::UpdateIntervalArrow(Long_t value)
     UpdateTimerState();
 }
 
-void TSupFDetMonGui::UpdateTimerState()
+void TSuFDeMonGui::UpdateTimerState()
 {
     if (!fUpdateTimer) return;
     fUpdateTimer->TurnOff();
@@ -335,7 +335,7 @@ void TSupFDetMonGui::UpdateTimerState()
     fUpdateTimer->Start(milliseconds, kTRUE);
 }
 
-void TSupFDetMonGui::AutoUpdate()
+void TSuFDeMonGui::AutoUpdate()
 {
     if (!fAutoUpdateCheck || !fAutoUpdateCheck->IsOn()) return;
     if (!fClient || !fClient->IsConnected() || !fHasDrawnHistogram) return;
@@ -344,7 +344,7 @@ void TSupFDetMonGui::AutoUpdate()
     UpdateTimerState();
 }
 
-void TSupFDetMonGui::CloseClient()
+void TSuFDeMonGui::CloseClient()
 {
     if (fUpdateTimer) fUpdateTimer->TurnOff();
     DisconnectServer();
@@ -356,7 +356,7 @@ void TSupFDetMonGui::CloseClient()
     if (gApplication) gApplication->Terminate(0);
 }
 
-void TSupFDetMonGui::CloseServer()
+void TSuFDeMonGui::CloseServer()
 {
     if (!fClient || !fClient->IsConnected()) return;
     if (fUpdateTimer) fUpdateTimer->TurnOff();
@@ -365,7 +365,7 @@ void TSupFDetMonGui::CloseServer()
     SetConnectedUi(false);
 }
 
-void TSupFDetMonGui::CloseAll()
+void TSuFDeMonGui::CloseAll()
 {
     if (fUpdateTimer) fUpdateTimer->TurnOff();
     if (fClient && fClient->IsConnected()) fClient->ShutdownServer();
@@ -378,7 +378,7 @@ void TSupFDetMonGui::CloseAll()
     if (gApplication) gApplication->Terminate(0);
 }
 
-void TSupFDetMonGui::CloseWindow()
+void TSuFDeMonGui::CloseWindow()
 {
     if (fUpdateTimer) fUpdateTimer->TurnOff();
     DisconnectServer();

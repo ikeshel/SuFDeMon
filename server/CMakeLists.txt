@@ -1,26 +1,26 @@
-add_library(SupFDetMonServerLib
-    src/TSupFDetMonServer.cxx
+add_library(SuFDeMonServerLib
+    src/TSuFDeMonServer.cxx
 )
 
-target_include_directories(SupFDetMonServerLib
+target_include_directories(SuFDeMonServerLib
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/inc
 )
 
-target_link_libraries(SupFDetMonServerLib
+target_link_libraries(SuFDeMonServerLib
     PUBLIC
-        SupFDetMonCommon
+        SuFDeMonCommon
         ROOT::Core
         ROOT::RIO
         ROOT::Net
         ROOT::Hist
 )
 
-add_executable(SupFDetMonServer
-    src/SupFDetMonServer.cxx
+add_executable(SuFDeMonServer
+    src/SuFDeMonServer.cxx
 )
 
-target_link_libraries(SupFDetMonServer
+target_link_libraries(SuFDeMonServer
     PRIVATE
-        SupFDetMonServerLib
+        SuFDeMonServerLib
 )

@@ -1,15 +1,15 @@
-add_library(SupFDetMonClientLib
-    src/TSupFDetMonClient.cxx
+add_library(SuFDeMonClientLib
+    src/TSuFDeMonClient.cxx
 )
 
-target_include_directories(SupFDetMonClientLib
+target_include_directories(SuFDeMonClientLib
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/inc
 )
 
-target_link_libraries(SupFDetMonClientLib
+target_link_libraries(SuFDeMonClientLib
     PUBLIC
-        SupFDetMonCommon
+        SuFDeMonCommon
         ROOT::Core
         ROOT::RIO
         ROOT::Net
@@ -18,40 +18,40 @@ target_link_libraries(SupFDetMonClientLib
         ROOT::Gpad
 )
 
-add_executable(SupFDetMonClient
-    src/SupFDetMonClient.cxx
+add_executable(SuFDeMonClient
+    src/SuFDeMonClient.cxx
 )
 
-set_target_properties(SupFDetMonClient PROPERTIES ENABLE_EXPORTS ON)
+set_target_properties(SuFDeMonClient PROPERTIES ENABLE_EXPORTS ON)
 
-target_link_libraries(SupFDetMonClient
+target_link_libraries(SuFDeMonClient
     PRIVATE
-        SupFDetMonClientLib
+        SuFDeMonClientLib
         ROOT::Rint
 )
 
-ROOT_GENERATE_DICTIONARY(G__SupFDetMonGui
-    ${CMAKE_CURRENT_SOURCE_DIR}/inc/TSupFDetMonGui.h
-    MODULE SupFDetMonGui
+ROOT_GENERATE_DICTIONARY(G__SuFDeMonGui
+    ${CMAKE_CURRENT_SOURCE_DIR}/inc/TSuFDeMonGui.h
+    MODULE SuFDeMonGui
 )
 
-add_executable(SupFDetMonGui
-    src/SupFDetMonGui.cxx
-    src/TSupFDetMonGui.cxx
-    ${CMAKE_CURRENT_BINARY_DIR}/G__SupFDetMonGui.cxx
+add_executable(SuFDeMonGui
+    src/SuFDeMonGui.cxx
+    src/TSuFDeMonGui.cxx
+    ${CMAKE_CURRENT_BINARY_DIR}/G__SuFDeMonGui.cxx
 )
 
-set_target_properties(SupFDetMonGui PROPERTIES ENABLE_EXPORTS ON)
+set_target_properties(SuFDeMonGui PROPERTIES ENABLE_EXPORTS ON)
 
-target_include_directories(SupFDetMonGui
+target_include_directories(SuFDeMonGui
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/inc
         ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-target_link_libraries(SupFDetMonGui
+target_link_libraries(SuFDeMonGui
     PRIVATE
-        SupFDetMonClientLib
+        SuFDeMonClientLib
         ROOT::Gui
         ROOT::Gpad
         ROOT::Hist

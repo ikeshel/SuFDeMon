@@ -1,6 +1,6 @@
 // Author: Irakli Keshelashvili, 2026
 //
-// SupFDetMon - Super-FRS Detector Monitoring Software
+// SuFDeMon - Super-FRS Detector Monitoring Software
 //
 // Copyright (C) 2026 Irakli Keshelashvili
 //
@@ -10,8 +10,8 @@
 //
 // See the LICENSE file in the project root for the full license text.
 
-#include "TSupFDetMonGui.h"
-#include "SupFDetMonProtocol.h"
+#include "TSuFDeMonGui.h"
+#include "SuFDeMonProtocol.h"
 
 #include <TGClient.h>
 #include <TRint.h>
@@ -20,12 +20,12 @@
 #include <iostream>
 #include <string>
 
-TSupFDetMonGui* gSupFDetMonGui = nullptr;
+TSuFDeMonGui* gSuFDeMonGui = nullptr;
 
 int main(int argc, char** argv)
 {
     std::string host = "localhost";
-    int port = SupFDetMon::Protocol::kDefaultPort;
+    int port = SuFDeMon::Protocol::kDefaultPort;
 
     if (argc > 3) {
         std::cerr << "Usage: " << argv[0] << " [host] [port]\n";
@@ -48,16 +48,16 @@ int main(int argc, char** argv)
     // TRint gives the GUI process the normal interactive ROOT command line too.
     int rootArgc = 1;
     char* rootArgv[] = {argv[0], nullptr};
-    TRint application("SupFDetMonGui", &rootArgc, rootArgv);
+    TRint application("SuFDeMonGui", &rootArgc, rootArgv);
 
-    gSupFDetMonGui = new TSupFDetMonGui(gClient->GetRoot(), 430, 360, host, port);
+    gSuFDeMonGui = new TSuFDeMonGui(gClient->GetRoot(), 430, 360, host, port);
 
-    std::cout << "\nSupFDetMon GUI started. ROOT command line is active.\n"
+    std::cout << "\nSuFDeMon GUI started. ROOT command line is active.\n"
               << "The control window and TCanvas are separate windows.\n"
-              << "Global GUI pointer: gSupFDetMonGui\n\n";
+              << "Global GUI pointer: gSuFDeMonGui\n\n";
 
     application.Run();
 
-    gSupFDetMonGui = nullptr;
+    gSuFDeMonGui = nullptr;
     return 0;
 }

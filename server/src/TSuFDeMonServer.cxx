@@ -1,6 +1,6 @@
 // Author: Irakli Keshelashvili, 2026
 //
-// SupFDetMon - Super-FRS Detector Monitoring Software
+// SuFDeMon - Super-FRS Detector Monitoring Software
 //
 // Copyright (C) 2026 Irakli Keshelashvili
 //
@@ -10,10 +10,10 @@
 //
 // See the LICENSE file in the project root for the full license text.
 
-#include "TSupFDetMonServer.h"
+#include "TSuFDeMonServer.h"
 
-#include "SupFDetMonNames.h"
-#include "SupFDetMonProtocol.h"
+#include "SuFDeMonNames.h"
+#include "SuFDeMonProtocol.h"
 
 #include <TMessage.h>
 #include <TServerSocket.h>
@@ -41,25 +41,25 @@ void SendText(TSocket& socket, const std::string& text)
 
 } // namespace
 
-TSupFDetMonServer::TSupFDetMonServer(int port)
+TSuFDeMonServer::TSuFDeMonServer(int port)
     : fPort(port),
       fRandom(std::make_unique<TRandom3>(0))
 {
     CreateHistograms();
 }
 
-TSupFDetMonServer::~TSupFDetMonServer()
+TSuFDeMonServer::~TSuFDeMonServer()
 {
     fFillRunning = false;
     if (fFillThread.joinable())
         fFillThread.join();
 }
 
-void TSupFDetMonServer::CreateHistograms()
+void TSuFDeMonServer::CreateHistograms()
 {
-    for (int fc = 1; fc <= SupFDetMon::kNFieldCages; ++fc) {
-        for (int adc = 0; adc < SupFDetMon::kNAdcChannels; ++adc) {
-            const std::string name = SupFDetMon::MusicAdcHistogramName(fc, adc);
+    for (int fc = 1; fc <= SuFDeMon::kNFieldCages; ++fc) {
+        for (int adc = 0; adc < SuFDeMon::kNAdcChannels; ++adc) {
+            const std::string name = SuFDeMon::MusicAdcHistogramName(fc, adc);
             const std::string title = "MUSIC ADC FC" + std::to_string(fc)
                                     + " ADC" + std::to_string(adc)
                                     + ";ADC value;Counts";
@@ -72,7 +72,7 @@ void TSupFDetMonServer::CreateHistograms()
     }
 }
 
-void TSupFDetMonServer::FillHistograms()
+void TSuFDeMonServer::FillHistograms()
 {
     for (int fc = 0; fc < kNFieldCages; ++fc) {
         for (int adc = 0; adc < kNAdcChannels; ++adc) {
@@ -83,7 +83,7 @@ void TSupFDetMonServer::FillHistograms()
     }
 }
 
-void TSupFDetMonServer::FillLoop()
+void TSuFDeMonServer::FillLoop()
 {
     // Simulate a continuously running detector independently of client traffic.
     // One event per histogram is generated every 10 ms (~100 Hz).
@@ -93,7 +93,7 @@ void TSupFDetMonServer::FillLoop()
     }
 }
 
-TH1D* TSupFDetMonServer::FindHistogram(const std::string& name)
+TH1D* TSuFDeMonServer::FindHistogram(const std::string& name)
 {
     for (auto& fieldCage : fMusicAdc) {
         for (auto& histogram : fieldCage) {
@@ -106,7 +106,7 @@ TH1D* TSupFDetMonServer::FindHistogram(const std::string& name)
     return nullptr;
 }
 
-std::string TSupFDetMonServer::HistogramList() const
+std::string TSuFDeMonServer::HistogramList() const
 {
     std::ostringstream output;
 
@@ -119,19 +119,19 @@ std::string TSupFDetMonServer::HistogramList() const
     return output.str();
 }
 
-bool TSupFDetMonServer::HandleCommand(TSocket& socket, const std::string& command)
+bool TSuFDeMonServer::HandleCommand(TSocket& socket, const std::string& command)
 {
-    if (command == SupFDetMon::Protocol::kPing) {
+    if (command == SuFDeMon::Protocol::kPing) {
         SendText(socket, "PONG");
         return true;
     }
 
-    if (command == SupFDetMon::Protocol::kList) {
+    if (command == SuFDeMon::Protocol::kList) {
         SendText(socket, HistogramList());
         return true;
     }
 
-    if (command == SupFDetMon::Protocol::kClearAll) {
+    if (command == SuFDeMon::Protocol::kClearAll) {
         for (auto& fieldCage : fMusicAdc) {
             for (auto& histogram : fieldCage) {
                 histogram->Reset();
@@ -142,7 +142,7 @@ bool TSupFDetMonServer::HandleCommand(TSocket& socket, const std::string& comman
         return true;
     }
 
-    const std::string getPrefix = std::string(SupFDetMon::Protocol::kGet) + " ";
+    const std::string getPrefix = std::string(SuFDeMon::Protocol::kGet) + " ";
     if (StartsWith(command, getPrefix)) {
         const std::string name = command.substr(getPrefix.size());
         TH1D* histogram = FindHistogram(name);
@@ -158,7 +158,7 @@ bool TSupFDetMonServer::HandleCommand(TSocket& socket, const std::string& comman
         return true;
     }
 
-    const std::string clearPrefix = std::string(SupFDetMon::Protocol::kClear) + " ";
+    const std::string clearPrefix = std::string(SuFDeMon::Protocol::kClear) + " ";
     if (StartsWith(command, clearPrefix)) {
         const std::string name = command.substr(clearPrefix.size());
         TH1D* histogram = FindHistogram(name);
@@ -173,14 +173,14 @@ bool TSupFDetMonServer::HandleCommand(TSocket& socket, const std::string& comman
         return true;
     }
 
-    if (command == SupFDetMon::Protocol::kShutdown) {
+    if (command == SuFDeMon::Protocol::kShutdown) {
         SendText(socket, "BYE");
         fServerRunning = false;
         fFillRunning = false;
         return false;
     }
 
-    if (command == SupFDetMon::Protocol::kQuit) {
+    if (command == SuFDeMon::Protocol::kQuit) {
         SendText(socket, "BYE");
         return false;
     }
@@ -189,7 +189,7 @@ bool TSupFDetMonServer::HandleCommand(TSocket& socket, const std::string& comman
     return true;
 }
 
-bool TSupFDetMonServer::HandleClient(TSocket& socket)
+bool TSuFDeMonServer::HandleClient(TSocket& socket)
 {
     std::cout << "Client connected." << std::endl;
 
@@ -214,7 +214,7 @@ bool TSupFDetMonServer::HandleClient(TSocket& socket)
     return true;
 }
 
-int TSupFDetMonServer::Run()
+int TSuFDeMonServer::Run()
 {
     fServerSocket = std::make_unique<TServerSocket>(fPort, true);
 
@@ -223,12 +223,12 @@ int TSupFDetMonServer::Run()
         return 1;
     }
 
-    std::cout << "SupFDetMon server listening on port " << fPort << std::endl;
+    std::cout << "SuFDeMon server listening on port " << fPort << std::endl;
     std::cout << "Created " << kNFieldCages * kNAdcChannels
               << " MUSIC ADC histograms." << std::endl;
 
     fFillRunning = true;
-    fFillThread = std::thread(&TSupFDetMonServer::FillLoop, this);
+    fFillThread = std::thread(&TSuFDeMonServer::FillLoop, this);
     std::cout << "Continuous simulated data filling started at ~100 Hz." << std::endl;
 
     fServerRunning = true;
@@ -250,6 +250,6 @@ int TSupFDetMonServer::Run()
         fFillThread.join();
 
     fServerSocket->Close();
-    std::cout << "SupFDetMon server stopped." << std::endl;
+    std::cout << "SuFDeMon server stopped." << std::endl;
     return 0;
 }

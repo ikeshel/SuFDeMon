@@ -1,6 +1,6 @@
 // Author: Irakli Keshelashvili, 2026
 //
-// SupFDetMon - Super-FRS Detector Monitoring Software
+// SuFDeMon - Super-FRS Detector Monitoring Software
 //
 // Copyright (C) 2026 Irakli Keshelashvili
 //
@@ -10,9 +10,9 @@
 //
 // See the LICENSE file in the project root for the full license text.
 
-#include "TSupFDetMonClient.h"
+#include "TSuFDeMonClient.h"
 
-#include "SupFDetMonProtocol.h"
+#include "SuFDeMonProtocol.h"
 
 #include <TCanvas.h>
 #include <TClass.h>
@@ -26,12 +26,12 @@
 #include <string>
 #include <utility>
 
-TSupFDetMonClient::TSupFDetMonClient(std::string host, int port)
+TSuFDeMonClient::TSuFDeMonClient(std::string host, int port)
     : fHost(std::move(host)), fPort(port) {}
 
-TSupFDetMonClient::~TSupFDetMonClient() { Disconnect(); }
+TSuFDeMonClient::~TSuFDeMonClient() { Disconnect(); }
 
-bool TSupFDetMonClient::Connect()
+bool TSuFDeMonClient::Connect()
 {
     Disconnect();
     fSocket = std::make_unique<TSocket>(fHost.c_str(), fPort);
@@ -43,11 +43,11 @@ bool TSupFDetMonClient::Connect()
     return true;
 }
 
-void TSupFDetMonClient::Disconnect()
+void TSuFDeMonClient::Disconnect()
 {
     if (!fSocket) return;
     if (fSocket->IsValid()) {
-        fSocket->Send(std::string(SupFDetMon::Protocol::kQuit).c_str());
+        fSocket->Send(std::string(SuFDeMon::Protocol::kQuit).c_str());
         char reply[256] = {};
         fSocket->Recv(reply, sizeof(reply));
     }
@@ -55,9 +55,9 @@ void TSupFDetMonClient::Disconnect()
     fSocket.reset();
 }
 
-bool TSupFDetMonClient::IsConnected() const { return fSocket && fSocket->IsValid(); }
+bool TSuFDeMonClient::IsConnected() const { return fSocket && fSocket->IsValid(); }
 
-bool TSupFDetMonClient::SendCommand(const std::string& command)
+bool TSuFDeMonClient::SendCommand(const std::string& command)
 {
     if (!IsConnected()) {
         std::cerr << "Client is not connected." << std::endl;
@@ -66,7 +66,7 @@ bool TSupFDetMonClient::SendCommand(const std::string& command)
     return fSocket->Send(command.c_str()) > 0;
 }
 
-std::string TSupFDetMonClient::ReceiveText()
+std::string TSuFDeMonClient::ReceiveText()
 {
     if (!IsConnected()) return {};
     char buffer[65536] = {};
@@ -74,20 +74,20 @@ std::string TSupFDetMonClient::ReceiveText()
     return received > 0 ? std::string(buffer) : std::string{};
 }
 
-bool TSupFDetMonClient::Ping()
+bool TSuFDeMonClient::Ping()
 {
-    return SendCommand(std::string(SupFDetMon::Protocol::kPing)) && ReceiveText() == "PONG";
+    return SendCommand(std::string(SuFDeMon::Protocol::kPing)) && ReceiveText() == "PONG";
 }
 
-std::string TSupFDetMonClient::ListHistograms()
+std::string TSuFDeMonClient::ListHistograms()
 {
-    if (!SendCommand(std::string(SupFDetMon::Protocol::kList))) return {};
+    if (!SendCommand(std::string(SuFDeMon::Protocol::kList))) return {};
     return ReceiveText();
 }
 
-std::unique_ptr<TH1D> TSupFDetMonClient::GetHistogram(const std::string& name)
+std::unique_ptr<TH1D> TSuFDeMonClient::GetHistogram(const std::string& name)
 {
-    if (!SendCommand(std::string(SupFDetMon::Protocol::kGet) + " " + name)) return nullptr;
+    if (!SendCommand(std::string(SuFDeMon::Protocol::kGet) + " " + name)) return nullptr;
 
     TMessage* rawMessage = nullptr;
     const int received = fSocket->Recv(rawMessage);
@@ -119,21 +119,21 @@ std::unique_ptr<TH1D> TSupFDetMonClient::GetHistogram(const std::string& name)
     return std::unique_ptr<TH1D>(histogram);
 }
 
-bool TSupFDetMonClient::ClearHistogram(const std::string& name)
+bool TSuFDeMonClient::ClearHistogram(const std::string& name)
 {
-    return SendCommand(std::string(SupFDetMon::Protocol::kClear) + " " + name)
+    return SendCommand(std::string(SuFDeMon::Protocol::kClear) + " " + name)
         && ReceiveText() == "OK";
 }
 
-bool TSupFDetMonClient::ClearAll()
+bool TSuFDeMonClient::ClearAll()
 {
-    return SendCommand(std::string(SupFDetMon::Protocol::kClearAll))
+    return SendCommand(std::string(SuFDeMon::Protocol::kClearAll))
         && ReceiveText() == "OK";
 }
 
-bool TSupFDetMonClient::ShutdownServer()
+bool TSuFDeMonClient::ShutdownServer()
 {
-    if (!SendCommand(std::string(SupFDetMon::Protocol::kShutdown)))
+    if (!SendCommand(std::string(SuFDeMon::Protocol::kShutdown)))
         return false;
 
     const bool acknowledged = ReceiveText() == "BYE";
@@ -144,12 +144,12 @@ bool TSupFDetMonClient::ShutdownServer()
     return acknowledged;
 }
 
-bool TSupFDetMonClient::DrawHistogram(const std::string& name)
+bool TSuFDeMonClient::DrawHistogram(const std::string& name)
 {
     auto histogram = GetHistogram(name);
     if (!histogram) return false;
 
-    auto canvas = std::make_unique<TCanvas>("SupFDetMonCanvas", name.c_str(), 1000, 700);
+    auto canvas = std::make_unique<TCanvas>("SuFDeMonCanvas", name.c_str(), 1000, 700);
     histogram->Draw();
     canvas->Modified();
     canvas->Update();

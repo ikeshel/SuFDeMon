@@ -1,6 +1,6 @@
 // Author: Irakli Keshelashvili, 2026
 //
-// SupFDetMon - Super-FRS Detector Monitoring Software
+// SuFDeMon - Super-FRS Detector Monitoring Software
 //
 // Copyright (C) 2026 Irakli Keshelashvili
 //
@@ -10,8 +10,8 @@
 //
 // See the LICENSE file in the project root for the full license text.
 
-#ifndef TSUPFDETMONSERVER_H
-#define TSUPFDETMONSERVER_H
+#ifndef TSUFDEMONSERVER_H
+#define TSUFDEMONSERVER_H
 
 #include <array>
 #include <memory>
@@ -24,14 +24,14 @@ class TRandom3;
 class TServerSocket;
 class TSocket;
 
-class TSupFDetMonServer
+class TSuFDeMonServer
 {
 public:
-    explicit TSupFDetMonServer(int port);
-    ~TSupFDetMonServer();
+    explicit TSuFDeMonServer(int port);
+    ~TSuFDeMonServer();
 
-    TSupFDetMonServer(const TSupFDetMonServer&) = delete;
-    TSupFDetMonServer& operator=(const TSupFDetMonServer&) = delete;
+    TSuFDeMonServer(const TSuFDeMonServer&) = delete;
+    TSuFDeMonServer& operator=(const TSuFDeMonServer&) = delete;
 
     int Run();
 

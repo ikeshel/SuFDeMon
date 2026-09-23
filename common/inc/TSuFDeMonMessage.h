@@ -1,6 +1,6 @@
 // Author: Irakli Keshelashvili, 2026
 //
-// SupFDetMon - Super-FRS Detector Monitoring Software
+// SuFDeMon - Super-FRS Detector Monitoring Software
 //
 // Copyright (C) 2026 Irakli Keshelashvili
 //
@@ -10,16 +10,16 @@
 //
 // See the LICENSE file in the project root for the full license text.
 
-#ifndef TSUPFDETMONMESSAGE_H
-#define TSUPFDETMONMESSAGE_H
+#ifndef TSUFDEMONMESSAGE_H
+#define TSUFDEMONMESSAGE_H
 
 #include <string>
 
-class TSupFDetMonMessage
+class TSuFDeMonMessage
 {
 public:
-    TSupFDetMonMessage() = default;
-    explicit TSupFDetMonMessage(std::string command);
+    TSuFDeMonMessage() = default;
+    explicit TSuFDeMonMessage(std::string command);
 
     const std::string& GetCommand() const noexcept;
     void SetCommand(std::string command);

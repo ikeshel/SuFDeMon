@@ -1,6 +1,6 @@
 // Author: Irakli Keshelashvili, 2026
 //
-// SupFDetMon - Super-FRS Detector Monitoring Software
+// SuFDeMon - Super-FRS Detector Monitoring Software
 //
 // Copyright (C) 2026 Irakli Keshelashvili
 //
@@ -10,13 +10,13 @@
 //
 // See the LICENSE file in the project root for the full license text.
 
-#ifndef SUPFDETMON_NAMES_H
-#define SUPFDETMON_NAMES_H
+#ifndef SUFDEMON_NAMES_H
+#define SUFDEMON_NAMES_H
 
 #include <stdexcept>
 #include <string>
 
-namespace SupFDetMon {
+namespace SuFDeMon {
 
 inline constexpr int kNFieldCages = 3;
 inline constexpr int kNAdcChannels = 32;
@@ -35,6 +35,6 @@ inline std::string MusicAdcHistogramName(int fieldCage, int adcChannel)
          + "_ADC" + std::to_string(adcChannel);
 }
 
-} // namespace SupFDetMon
+} // namespace SuFDeMon
 
 #endif

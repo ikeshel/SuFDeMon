@@ -1,6 +1,6 @@
 // Author: Irakli Keshelashvili, 2026
 //
-// SupFDetMon - Super-FRS Detector Monitoring Software
+// SuFDeMon - Super-FRS Detector Monitoring Software
 //
 // Copyright (C) 2026 Irakli Keshelashvili
 //
@@ -10,12 +10,12 @@
 //
 // See the LICENSE file in the project root for the full license text.
 
-#ifndef SUPFDETMON_PROTOCOL_H
-#define SUPFDETMON_PROTOCOL_H
+#ifndef SUFDEMON_PROTOCOL_H
+#define SUFDEMON_PROTOCOL_H
 
 #include <string_view>
 
-namespace SupFDetMon::Protocol {
+namespace SuFDeMon::Protocol {
 
 inline constexpr int kDefaultPort = 10001;
 
@@ -27,6 +27,6 @@ inline constexpr std::string_view kClearAll = "CLEAR ALL";
 inline constexpr std::string_view kQuit = "QUIT";
 inline constexpr std::string_view kShutdown = "SHUTDOWN";
 
-} // namespace SupFDetMon::Protocol
+} // namespace SuFDeMon::Protocol
 
 #endif

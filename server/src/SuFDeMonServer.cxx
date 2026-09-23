@@ -1,6 +1,6 @@
 // Author: Irakli Keshelashvili, 2026
 //
-// SupFDetMon - Super-FRS Detector Monitoring Software
+// SuFDeMon - Super-FRS Detector Monitoring Software
 //
 // Copyright (C) 2026 Irakli Keshelashvili
 //
@@ -10,9 +10,9 @@
 //
 // See the LICENSE file in the project root for the full license text.
 
-#include "TSupFDetMonServer.h"
+#include "TSuFDeMonServer.h"
 
-#include "SupFDetMonProtocol.h"
+#include "SuFDeMonProtocol.h"
 
 #include <exception>
 #include <iostream>
@@ -20,7 +20,7 @@
 
 int main(int argc, char** argv)
 {
-    int port = SupFDetMon::Protocol::kDefaultPort;
+    int port = SuFDeMon::Protocol::kDefaultPort;
 
     if (argc > 2) {
         std::cerr << "Usage: " << argv[0] << " [port]" << std::endl;
@@ -41,6 +41,6 @@ int main(int argc, char** argv)
         }
     }
 
-    TSupFDetMonServer server(port);
+    TSuFDeMonServer server(port);
     return server.Run();
 }

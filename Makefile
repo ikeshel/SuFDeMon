@@ -1,4 +1,4 @@
-# SupFDetMon convenience Makefile
+# SuFDeMon convenience Makefile
 # The actual build system is CMake.
 
 BUILD_DIR  ?= build
@@ -29,22 +29,22 @@ release:
 	$(MAKE) BUILD_TYPE=Release build
 
 server: configure
-	$(CMAKE) --build $(BUILD_DIR) --target SupFDetMonServer --parallel
+	$(CMAKE) --build $(BUILD_DIR) --target SuFDeMonServer --parallel
 
 client: configure
-	$(CMAKE) --build $(BUILD_DIR) --target SupFDetMonClient --parallel
+	$(CMAKE) --build $(BUILD_DIR) --target SuFDeMonClient --parallel
 
 gui: configure
-	$(CMAKE) --build $(BUILD_DIR) --target SupFDetMonGui --parallel
+	$(CMAKE) --build $(BUILD_DIR) --target SuFDeMonGui --parallel
 
 run-server: server
-	./$(BUILD_DIR)/server/SupFDetMonServer $(PORT)
+	./$(BUILD_DIR)/server/SuFDeMonServer $(PORT)
 
 run-client: client
-	./$(BUILD_DIR)/client/SupFDetMonClient $(HOST) $(PORT)
+	./$(BUILD_DIR)/client/SuFDeMonClient $(HOST) $(PORT)
 
 run-gui: gui
-	./$(BUILD_DIR)/client/SupFDetMonGui $(HOST) $(PORT)
+	./$(BUILD_DIR)/client/SuFDeMonGui $(HOST) $(PORT)
 
 clean:
 	$(CMAKE) -E remove_directory $(BUILD_DIR)
@@ -55,7 +55,7 @@ pull:
 	git pull --ff-only
 
 help:
-	@echo "SupFDetMon build targets:"
+	@echo "SuFDeMon build targets:"
 	@echo ""
 	@echo "  make              Build everything"
 	@echo "  make build        Build everything"
