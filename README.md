@@ -123,7 +123,8 @@ histograms independently. Instance names do not change MUSIC histogram names,
 so existing MUSIC clients continue to work.
 
 The files under `config/servers/` define `type`, `instance`, `hostname` and `port`.
-Replace the `.example.invalid` hostnames with real hostnames or IP addresses.
+All example hostnames are currently `localhost` for local testing. Replace them
+with the readout PCs' hostnames or IP addresses when deploying remotely.
 `hostname` advertises the endpoint in startup output and the `INFO` response;
 it does **not** configure DNS, select a bind address, or start a remote process.
 Servers listen on all local interfaces. Run each command on the corresponding
