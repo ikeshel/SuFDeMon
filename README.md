@@ -161,6 +161,39 @@ are implemented. No detector channels or physics data have been invented.
 The current GUI remains MUSIC-specific; its host/port fields select a MUSIC
 instance. A detector-specific GUI for PLSCI/SCIFI is future work.
 
+### Running servers in Screen
+
+Install GNU Screen and `flock` (util-linux), build the servers, and source your
+ROOT environment as usual. Run these scripts on each detector readout PC:
+
+```bash
+# Start selected configurations on this PC.
+./scripts/start_servers.sh MUSIC1
+./scripts/start_servers.sh PLSCI2 SCIFI14
+
+# For local testing, start all 19 configurations.
+./scripts/start_servers.sh
+
+screen -ls
+screen -r SuFDeMon-MUSIC1
+# Detach with Ctrl-A, then D; the server keeps running.
+
+# Stop all SuFDeMon-* sessions owned by this user on this PC.
+./scripts/stop_servers.sh
+```
+
+Session names are `SuFDeMon-<config filename without .conf>`. Existing sessions
+are skipped, and logs are written to `logs/servers/<name>.log`. The scripts work
+from any working directory. `BUILD_DIR`, `CONFIG_DIR`, and `LOG_DIR` can override
+the start script's default directories (relative overrides use your current
+working directory).
+
+The scripts launch local processes; config hostnames do not trigger SSH or
+remote deployment. The stop script closes Screen sessions, terminating the
+processes inside them. It does not send the ROOT `SHUTDOWN` command, stop servers
+launched outside these sessions, or affect unrelated Screen sessions. Reserve
+the `SuFDeMon-` session prefix for these servers.
+
 ### Server checks
 
 With testing enabled (the default), run `ctest --test-dir build --output-on-failure`.
