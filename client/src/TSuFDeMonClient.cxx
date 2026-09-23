@@ -46,16 +46,28 @@ bool TSuFDeMonClient::Connect()
 void TSuFDeMonClient::Disconnect()
 {
     if (!fSocket) return;
-    if (fSocket->IsValid()) {
-        fSocket->Send(std::string(SuFDeMon::Protocol::kQuit).c_str());
-        char reply[256] = {};
-        fSocket->Recv(reply, sizeof(reply));
+    if (IsConnected() && SendCommand(std::string(SuFDeMon::Protocol::kQuit))) {
+        ReceiveText();
     }
     fSocket->Close();
     fSocket.reset();
 }
 
-bool TSuFDeMonClient::IsConnected() const { return fSocket && fSocket->IsValid(); }
+bool TSuFDeMonClient::IsConnected() const
+{
+    if (!fSocket || !fSocket->IsValid()) return false;
+    // IsValid only checks the local descriptor. A peer FIN/reset leaves it valid.
+    // Poll without waiting and peek one byte without consuming a ROOT message.
+    const int ready = fSocket->Select(TSocket::kRead, 0);
+    if (ready == 0) return true;
+    if (ready > 0) {
+        char byte = 0;
+        const int received = fSocket->RecvRaw(&byte, 1, kPeek);
+        if (received > 0) return true;
+    }
+    fSocket->Close();
+    return false;
+}
 
 bool TSuFDeMonClient::SendCommand(const std::string& command)
 {
@@ -63,7 +75,9 @@ bool TSuFDeMonClient::SendCommand(const std::string& command)
         std::cerr << "Client is not connected." << std::endl;
         return false;
     }
-    return fSocket->Send(command.c_str()) > 0;
+    if (fSocket->Send(command.c_str()) > 0) return true;
+    fSocket->Close();
+    return false;
 }
 
 std::string TSuFDeMonClient::ReceiveText()
@@ -71,7 +85,9 @@ std::string TSuFDeMonClient::ReceiveText()
     if (!IsConnected()) return {};
     char buffer[65536] = {};
     const int received = fSocket->Recv(buffer, sizeof(buffer));
-    return received > 0 ? std::string(buffer) : std::string{};
+    if (received > 0) return std::string(buffer);
+    fSocket->Close();
+    return {};
 }
 
 bool TSuFDeMonClient::Ping()
@@ -94,6 +110,7 @@ std::unique_ptr<TH1D> TSuFDeMonClient::GetHistogram(const std::string& name)
     std::unique_ptr<TMessage> message(rawMessage);
 
     if (received <= 0 || !message) {
+        fSocket->Close();
         std::cerr << "Failed to receive histogram." << std::endl;
         return nullptr;
     }
@@ -162,3 +179,4 @@ bool TSuFDeMonClient::DrawHistogram(const std::string& name)
     gSystem->ProcessEvents();
     return true;
 }
+

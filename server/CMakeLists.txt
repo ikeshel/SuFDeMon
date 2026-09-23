@@ -36,7 +36,6 @@ foreach(detector MUSIC PLSCI SCIFI)
 endforeach()
 
 if(BUILD_TESTING)
-    find_package(Python3 REQUIRED COMPONENTS Interpreter)
     add_executable(SuFDeMonServerProbe tests/ServerProbe.cxx)
     target_link_libraries(SuFDeMonServerProbe PRIVATE ROOT::Core ROOT::RIO ROOT::Net ROOT::Hist)
     add_test(NAME detector_servers

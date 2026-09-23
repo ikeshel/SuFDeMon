@@ -57,3 +57,12 @@ target_link_libraries(SuFDeMonGui
         ROOT::Hist
         ROOT::Rint
 )
+
+if(BUILD_TESTING)
+    add_executable(SuFDeMonDisconnectProbe tests/DisconnectProbe.cxx)
+    target_link_libraries(SuFDeMonDisconnectProbe PRIVATE SuFDeMonClientLib)
+    add_test(NAME client_disconnect
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/check_disconnect.py
+            $<TARGET_FILE:SuFDeMonMUSICServer> $<TARGET_FILE:SuFDeMonDisconnectProbe>)
+    set_tests_properties(client_disconnect PROPERTIES TIMEOUT 40)
+endif()

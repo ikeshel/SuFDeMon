@@ -144,6 +144,9 @@ TSuFDeMonGui::TSuFDeMonGui(const TGWindow* parent, UInt_t width, UInt_t height,
     // TTimer emits Timeout() in the ROOT event loop. It is single-shot here and
     // restarted after every refresh, so changing the interval takes effect cleanly.
     fUpdateTimer = new TTimer(1000, kTRUE);
+    // Monitor the connection even when histogram auto-update is disabled.
+    fConnectionTimer = new TTimer(1000, kTRUE);
+    fConnectionTimer->Connect("Timeout()", "TSuFDeMonGui", this, "CheckConnection()");
 
     fConnectButton->Connect("Clicked()", "TSuFDeMonGui", this, "ConnectServer()");
     fDisconnectButton->Connect("Clicked()", "TSuFDeMonGui", this, "DisconnectServer()");
@@ -189,6 +192,11 @@ TSuFDeMonGui::TSuFDeMonGui(const TGWindow* parent, UInt_t width, UInt_t height,
 
 TSuFDeMonGui::~TSuFDeMonGui()
 {
+    if (fConnectionTimer) {
+        fConnectionTimer->TurnOff();
+        delete fConnectionTimer;
+        fConnectionTimer = nullptr;
+    }
     if (fUpdateTimer) {
         fUpdateTimer->TurnOff();
         delete fUpdateTimer;
@@ -214,6 +222,7 @@ void TSuFDeMonGui::SetConnectedUi(bool connected)
     fDrawButton->SetEnabled(connected);
     fClearButton->SetEnabled(connected);
     fClearAllButton->SetEnabled(connected);
+    fCloseServerButton->SetEnabled(connected);
     fStatusLabel->SetText(connected ? "Connected" : "Disconnected");
 
     // Make the connection state immediately visible: green when connected,
@@ -223,6 +232,10 @@ void TSuFDeMonGui::SetConnectedUi(bool connected)
     fStatusLabel->SetTextColor(statusColor);
 
     if (!connected && fUpdateTimer) fUpdateTimer->TurnOff();
+    if (fConnectionTimer) {
+        fConnectionTimer->TurnOff();
+        if (connected) fConnectionTimer->Start(1000, kTRUE);
+    }
     Layout();
 }
 
@@ -328,7 +341,11 @@ void TSuFDeMonGui::UpdateTimerState()
 
     const bool enabled = fAutoUpdateCheck && fAutoUpdateCheck->IsOn();
     const bool connected = fClient && fClient->IsConnected();
-    if (!enabled || !connected || !fHasDrawnHistogram) return;
+    if (!connected) {
+        SetConnectedUi(false);
+        return;
+    }
+    if (!enabled || !fHasDrawnHistogram) return;
 
     const double seconds = std::max(0.2, fUpdateIntervalEntry->GetNumber());
     const Long_t milliseconds = static_cast<Long_t>(std::lround(seconds * 1000.0));
@@ -338,10 +355,22 @@ void TSuFDeMonGui::UpdateTimerState()
 void TSuFDeMonGui::AutoUpdate()
 {
     if (!fAutoUpdateCheck || !fAutoUpdateCheck->IsOn()) return;
-    if (!fClient || !fClient->IsConnected() || !fHasDrawnHistogram) return;
+    if (!fClient || !fClient->IsConnected() || !fHasDrawnHistogram) {
+        UpdateTimerState();
+        return;
+    }
 
     FetchAndDraw();
     UpdateTimerState();
+}
+
+void TSuFDeMonGui::CheckConnection()
+{
+    if (!fClient || !fClient->IsConnected()) {
+        DisconnectServer();
+        return;
+    }
+    fConnectionTimer->Start(1000, kTRUE);
 }
 
 void TSuFDeMonGui::CloseClient()
@@ -384,3 +413,4 @@ void TSuFDeMonGui::CloseWindow()
     DisconnectServer();
     DeleteWindow();
 }
+

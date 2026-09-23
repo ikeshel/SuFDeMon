@@ -46,6 +46,7 @@ public:
     void UpdateIntervalChanged();
     void UpdateIntervalArrow(Long_t value);
     void AutoUpdate();
+    void CheckConnection();
     void CloseClient();
     void CloseServer();
     void CloseAll();
@@ -82,9 +83,11 @@ private:
     std::unique_ptr<TH1D> fHistogram;
     TCanvas* fCanvas = nullptr;
     TTimer* fUpdateTimer = nullptr;
+    TTimer* fConnectionTimer = nullptr;
     bool fHasDrawnHistogram = false;
 
     ClassDefOverride(TSuFDeMonGui, 0);
 };
 
 #endif
+

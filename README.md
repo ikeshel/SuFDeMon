@@ -199,6 +199,18 @@ processes inside them. It does not send the ROOT `SHUTDOWN` command, stop server
 launched outside these sessions, or affect unrelated Screen sessions. Reserve
 the `SuFDeMon-` session prefix for these servers.
 
+### PyQt6 server control window
+
+```bash
+python3 -m pip install -r control/requirements.txt
+python3 control/server_control.py
+```
+
+The top row starts or stops all local servers. The second row has MUSIC (2),
+PLSCI (3), and SCIFI (14) columns with one toggle button per instance. Buttons
+show the local Screen-session state and start or stop that server when clicked.
+See [control/README.md](control/README.md) for requirements, behavior, and tests.
+
 ### Server checks
 
 With testing enabled (the default), run `ctest --test-dir build --output-on-failure`.
@@ -240,7 +252,7 @@ With the server running:
 ./build/client/SuFDeMonGui localhost 10001
 ```
 
-The GUI attempts to connect automatically using the host and port supplied on the command line. If the connection is unavailable, the GUI remains open and the connection can be retried manually.
+The GUI attempts to connect automatically using the host and port supplied on the command line. If the connection is unavailable, the GUI remains open and the connection can be retried manually. An independent one-second connection check detects a closed server even when histogram auto-update is disabled, changes the status to Disconnected, and enables reconnection. Transport send/receive failures also invalidate the connection. This detects socket closure/reset; it is not a heartbeat for silent network outages.
 
 The control window provides:
 

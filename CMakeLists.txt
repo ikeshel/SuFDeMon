@@ -9,6 +9,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(ROOT REQUIRED COMPONENTS Core RIO Net Hist Graf Gpad Rint Gui)
 
 include(CTest)
+if(BUILD_TESTING)
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+endif()
 
 add_subdirectory(common)
 add_subdirectory(server)
