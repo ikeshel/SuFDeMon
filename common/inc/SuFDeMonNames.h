@@ -21,7 +21,22 @@ namespace SuFDeMon {
 inline constexpr int kNFieldCages = 3;
 inline constexpr int kNAdcChannels = 32;
 
-inline std::string MusicAdcHistogramName(int fieldCage, int adcChannel)
+inline std::string InstanceHistogramName(const std::string& instance,
+                                         const std::string& histogramName)
+{
+    if (instance.empty()) {
+        throw std::invalid_argument("Histogram instance name must not be empty");
+    }
+    if (histogramName.empty()) {
+        throw std::invalid_argument("Histogram name must not be empty");
+    }
+
+    return instance + "_" + histogramName;
+}
+
+inline std::string MusicAdcHistogramName(const std::string& instance,
+                                         int fieldCage,
+                                         int adcChannel)
 {
     if (fieldCage < 1 || fieldCage > kNFieldCages) {
         throw std::out_of_range("MUSIC field cage must be in the range 1..3");
@@ -31,8 +46,10 @@ inline std::string MusicAdcHistogramName(int fieldCage, int adcChannel)
         throw std::out_of_range("MUSIC ADC channel must be in the range 0..31");
     }
 
-    return "TH1D_MUSIC_ADC_FC" + std::to_string(fieldCage)
-         + "_ADC" + std::to_string(adcChannel);
+    return InstanceHistogramName(
+        instance,
+        "TH1D_MUSIC_ADC_FC" + std::to_string(fieldCage)
+            + "_ADC" + std::to_string(adcChannel));
 }
 
 } // namespace SuFDeMon
