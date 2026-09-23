@@ -90,6 +90,12 @@ std::string TSuFDeMonClient::ReceiveText()
     return {};
 }
 
+std::string TSuFDeMonClient::Info()
+{
+    if (!SendCommand(std::string(SuFDeMon::Protocol::kInfo))) return {};
+    return ReceiveText();
+}
+
 bool TSuFDeMonClient::Ping()
 {
     return SendCommand(std::string(SuFDeMon::Protocol::kPing)) && ReceiveText() == "PONG";
@@ -179,4 +185,3 @@ bool TSuFDeMonClient::DrawHistogram(const std::string& name)
     gSystem->ProcessEvents();
     return true;
 }
-
