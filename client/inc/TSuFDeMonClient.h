@@ -32,6 +32,7 @@ public:
     void Disconnect();
     bool IsConnected() const;
 
+    std::string Info();
     bool Ping();
     std::string ListHistograms();
     std::unique_ptr<TH1D> GetHistogram(const std::string& name);
