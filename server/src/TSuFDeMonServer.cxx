@@ -68,8 +68,10 @@ void TSuFDeMonServer::CreateHistograms()
     if (fConfig.type != SuFDeMon::DetectorType::MUSIC) return;
     for (int fc = 1; fc <= SuFDeMon::kNFieldCages; ++fc) {
         for (int adc = 0; adc < SuFDeMon::kNAdcChannels; ++adc) {
-            const std::string name = SuFDeMon::MusicAdcHistogramName(fc, adc);
-            const std::string title = "MUSIC ADC FC" + std::to_string(fc)
+            const std::string name =
+                SuFDeMon::MusicAdcHistogramName(fConfig.instance, fc, adc);
+            const std::string title = fConfig.instance + " MUSIC ADC FC"
+                                    + std::to_string(fc)
                                     + " ADC" + std::to_string(adc)
                                     + ";ADC value;Counts";
 
@@ -273,4 +275,3 @@ int TSuFDeMonServer::Run()
     std::cout << "SuFDeMon server stopped." << std::endl;
     return 0;
 }
-
