@@ -64,6 +64,7 @@ public:
 private:
     std::string SelectedHistogramName() const;
     void UpdateHistogramName();
+    void UpdateServerIdentity(const std::string& info);
     void SetConnectedUi(bool connected);
     void UpdateTimerState();
     void FetchAndDraw();
@@ -103,6 +104,8 @@ private:
     std::vector<int> fServerStates;
     std::vector<TGTextButton*> fServerButtons;
 
+    std::string fConnectedDetectorType = "MUSIC";
+    std::string fConnectedInstance = "MUSIC1";
     std::unique_ptr<TSuFDeMonClient> fClient;
     std::unique_ptr<TH1D> fHistogram;
     TCanvas* fCanvas = nullptr;
