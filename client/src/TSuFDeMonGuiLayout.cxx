@@ -25,6 +25,7 @@
 #include <TGNumberEntry.h>
 #include <TGTab.h>
 #include <TGTextEntry.h>
+#include <TH1D.h>
 #include <TTimer.h>
 
 #include <algorithm>
