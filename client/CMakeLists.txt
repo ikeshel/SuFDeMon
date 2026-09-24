@@ -32,6 +32,7 @@ target_link_libraries(SuFDeMonClient
 
 ROOT_GENERATE_DICTIONARY(G__SuFDeMonGui
     ${CMAKE_CURRENT_SOURCE_DIR}/inc/TSuFDeMonGui.h
+    LINKDEF ${CMAKE_CURRENT_SOURCE_DIR}/inc/SuFDeMonGuiLinkDef.h
     MODULE SuFDeMonGui
 )
 
