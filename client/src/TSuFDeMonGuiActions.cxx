@@ -26,6 +26,7 @@
 #include <TGTab.h>
 #include <TH1D.h>
 #include <TTimer.h>
+#include <TROOT.h>
 
 #include <algorithm>
 #include <cmath>
@@ -74,6 +75,13 @@ void TSuFDeMonGui::UpdateServerIdentity(const std::string& info)
     if (!instance.empty())
         fConnectedInstance = instance;
 
+    const int selected = fAdcCombo->GetSelected();
+    const int channels = fConnectedDetectorType == "PLSCI"
+        ? SuFDeMon::PlsciPmtCount(fConnectedInstance.c_str()) : SuFDeMon::kNAdcChannels;
+    fAdcCombo->RemoveEntries(0, SuFDeMon::kNAdcChannels - 1);
+    for (int channel = 0; channel < channels; ++channel)
+        fAdcCombo->AddEntry(("CH" + std::to_string(channel)).c_str(), channel);
+    fAdcCombo->Select(selected >= 0 && selected < channels ? selected : 0, kFALSE);
     UpdateHistogramName();
 }
 
@@ -109,6 +117,7 @@ void TSuFDeMonGui::SelectServer(Int_t index)
     fConnectedDetectorType = fServerTypes[index];
     fConnectedInstance = fServerInstances[index];
     fLegacyHistogramPrefix.clear();
+    UpdateServerIdentity("");
     if (fClient && fClient->IsConnected()) {
         UpdateServerIdentity(fClient->Info());
         if (fConnectedDetectorType == "MUSIC") {
@@ -235,6 +244,54 @@ void TSuFDeMonGui::ListOfHistograms()
     }
     if (!anyConnected) std::cout << "No connected servers.\n";
     RefreshServerConnections();
+}
+
+TH1D* TSuFDeMonGui::FetchHistogram(const char* requestedName)
+{
+    const std::string name = requestedName ? requestedName : "";
+    if (name.empty()) {
+        std::cerr << "Histogram name must not be empty.\n";
+        return nullptr;
+    }
+
+    for (std::size_t index = 0; index < fServerInstances.size(); ++index) {
+        const std::string prefix = "h" + fServerInstances[index] + "_";
+        if (name.rfind(prefix, 0) != 0)
+            continue;
+
+        const auto& client = fServerClients[index];
+        if (!client || !client->IsConnected()) {
+            std::cerr << "Server " << fServerInstances[index]
+                      << " is not connected.\n";
+            return nullptr;
+        }
+
+        auto histogram = client->GetHistogram(name);
+        if (!histogram)
+            return nullptr;
+        TH1D* result = histogram.get();
+        fPromptHistograms.push_back(std::move(histogram));
+        return result;
+    }
+
+    std::cerr << "No configured server matches histogram '" << name
+              << "'. Use ListOfHistograms() to see available names.\n";
+    return nullptr;
+}
+
+void TSuFDeMonGui::DrawSelectedMacro()
+{
+    const int group = fTabs->GetCurrent() - 2;
+    if (group < 0 || group >= 3)
+        return;
+    auto* combo = fMacroCombos[group];
+    const auto& paths = fMacroPaths[group];
+    if (!combo || paths.empty())
+        return;
+    const int selected = combo->GetSelected();
+    if (selected < 0 || static_cast<std::size_t>(selected) >= paths.size())
+        return;
+    gROOT->Macro(paths[selected].c_str());
 }
 
 void TSuFDeMonGui::RefreshServerConnections()

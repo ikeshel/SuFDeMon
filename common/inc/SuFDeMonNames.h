@@ -15,6 +15,7 @@
 
 #include <stdexcept>
 #include <string>
+#include "SuFDeMonPlsciLayout.h"
 
 namespace SuFDeMon {
 

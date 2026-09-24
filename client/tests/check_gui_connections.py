@@ -54,70 +54,104 @@ try:
                 'h' + instance + '_' + (f'FC{fc}_' if fc else '') + quantity + str(channel)
                 for instance in instances for quantity in ('ADC', 'TDC')
                 for fc in (range(1, 4) if instance.startswith('MUSIC') else [0])
-                for channel in range(32)]
-        check('startup_all', 'gSuFDeMonGui->ConnectedServerCount()', 19)
-        for button, count in [(91, 0), (91, 0), (90, 19), (90, 19)]:
+                for channel in range((8 if instance in ('PLSCI4', 'PLSCI6') else 6) if instance.startswith('PLSCI') else 32)]
+        check('startup_all', 'gSuFDeMonGui->ConnectedServerCount()', 22)
+        for button, count in [(91, 0), (91, 0), (90, 22), (90, 22)]:
             commands.append(f'gSuFDeMonGui->ProcessMessage(MK_MSG(kC_COMMAND,kCM_BUTTON),{button},0);')
             check(f'global{button}_{len(checks)}', 'gSuFDeMonGui->ConnectedServerCount()', count)
         commands += ['gSuFDeMonGui->DisconnectGroup(0);', 'gSuFDeMonGui->DisconnectGroup(1);', 'gSuFDeMonGui->DisconnectGroup(2);']
         # Exercise the actual group button message dispatch.
-        for button, count in [(100, 2), (102, 5), (104, 19), (104, 19)]:
+        for button, count in [(100, 2), (102, 8), (104, 22), (104, 22)]:
             commands.append(f'gSuFDeMonGui->ProcessMessage(MK_MSG(kC_COMMAND,kCM_BUTTON),{button},0);')
             check(f'button{button}_{len(checks)}', 'gSuFDeMonGui->ConnectedServerCount()', count)
-        ordered = [f'MUSIC{i}' for i in range(1,3)] + [f'PLSCI{i}' for i in range(1,4)] + [f'SCIFI{i}' for i in range(1,15)]
+        ordered = [f'MUSIC{i}' for i in range(1,3)] + [f'PLSCI{i}' for i in range(1,7)] + [f'SCIFI{i}' for i in range(1,15)]
         list_check("all", ordered)
+        commands += ['auto* promptHistogram = SuFDeMonGet("hSCIFI14_TDC0");']
+        check('prompt_get', 'promptHistogram ? promptHistogram->GetName() : "null"', 'hSCIFI14_TDC0')
         for index, name in enumerate(ordered):
             commands += [f'gSuFDeMonGui->SelectServer({index});', 'gSuFDeMonGui->DrawSelected();']
             check(name, 'gSuFDeMonGui->GetHistogram()->GetName()', 'h'+name+('_FC1' if name.startswith('MUSIC') else '')+'_ADC0')
         list_check("after_selection", ordered)
-        check('after_selection', 'gSuFDeMonGui->ConnectedServerCount()', 19)
+        check('after_selection', 'gSuFDeMonGui->ConnectedServerCount()', 22)
         commands += [
             '#include <TGComboBox.h>', '#include <functional>', '#include <vector>',
             'auto* tabs = static_cast<TGTab*>(static_cast<TGFrameElement*>(gSuFDeMonGui->GetList()->First())->fFrame);',
             'std::vector<TGComboBox*> combos;',
             'std::function<void(TGCompositeFrame*)> collect = [&](TGCompositeFrame* f) { TIter next(f->GetList()); while (auto* item = next()) { auto* child = static_cast<TGFrameElement*>(item)->fFrame; if (auto* c = dynamic_cast<TGComboBox*>(child)) combos.push_back(c); else if (auto* nested = dynamic_cast<TGCompositeFrame*>(child)) collect(nested); } };',
         ]
-        for tab, detector, count, server, channel in [(2, 'MUSIC', 2, 1, 26), (3, 'PLSCI', 3, 3, 7), (4, 'SCIFI', 14, 7, 11)]:
+        for tab, detector, count, server, channel in [(2, 'MUSIC', 2, 1, 26), (3, 'PLSCI', 6, 3, 5), (4, 'SCIFI', 14, 10, 11)]:
             commands += [f'tabs->SetTab({tab});', 'combos.clear(); collect(tabs->GetCurrentContainer());']
             check(detector+'_server_count', 'combos[0]->GetNumberOfEntries()', count)
-            check(detector+'_control_count', 'combos.size()', 4 if tab == 2 else 3)
-            commands += [f'combos[0]->Select({server});', 'combos[combos.size()-2]->Select(1);', f'combos.back()->Select({channel});']
+            check(detector+'_control_count', 'combos.size()', 5 if tab == 2 else 4)
+            quantity_index = 2 if tab == 2 else 1
+            channel_index = 3 if tab == 2 else 2
+            commands += [f'combos[0]->Select({server});', f'combos[{quantity_index}]->Select(1);', f'combos[{channel_index}]->Select({channel});']
             if tab == 2:
                 commands += ['combos[1]->Select(2);']
             commands += ['gSuFDeMonGui->DrawSelected();']
-            expected = ['hMUSIC2_FC2_TDC26', 'hPLSCI2_TDC7', 'hSCIFI3_TDC11'][tab-2]
+            expected = ['hMUSIC2_FC2_TDC26', 'hPLSCI2_TDC5', 'hSCIFI3_TDC11'][tab-2]
             check(detector+'_tab_draw', 'gSuFDeMonGui->GetHistogram()->GetName()', expected)
-        for tab, name in [(2, 'hMUSIC2_FC2_TDC26'), (3, 'hPLSCI2_TDC7'), (4, 'hSCIFI3_TDC11')]:
+        for tab, name in [(2, 'hMUSIC2_FC2_TDC26'), (3, 'hPLSCI2_TDC5'), (4, 'hSCIFI3_TDC11')]:
             commands += [f'tabs->SetTab({tab});', 'gSuFDeMonGui->DrawSelected();']
             check('retained_tab'+str(tab), 'gSuFDeMonGui->GetHistogram()->GetName()', name)
-            commands += ['combos.clear(); collect(tabs->GetCurrentContainer());', 'combos[combos.size()-2]->Select(0);', 'combos.back()->Select(0);']
-        check('tabs_keep_connections', 'gSuFDeMonGui->ConnectedServerCount()', 19)
+            quantity_index = 2 if tab == 2 else 1
+            channel_index = 3 if tab == 2 else 2
+            commands += ['combos.clear(); collect(tabs->GetCurrentContainer());', f'combos[{quantity_index}]->Select(0);', f'combos[{channel_index}]->Select(0);']
+        check('tabs_keep_connections', 'gSuFDeMonGui->ConnectedServerCount()', 22)
+        commands += ['tabs->SetTab(3);', 'combos.clear(); collect(tabs->GetCurrentContainer());']
+        for instance, channels in [(4, 8), (5, 6), (6, 8), (1, 6), (2, 6), (3, 6)]:
+            commands += [f'combos[0]->Select({instance+1});']
+            check(f'PLSCI{instance}_channels', 'combos[2]->GetNumberOfEntries()', channels)
+            check(f'PLSCI{instance}_valid_selection', f'combos[2]->GetSelected() < {channels}', 1)
+            commands += [f'combos[2]->Select({channels-1});', 'gSuFDeMonGui->DrawSelected();']
+            check(f'PLSCI{instance}_last_pmt', 'gSuFDeMonGui->GetHistogram()->GetName()', f'hPLSCI{instance}_ADC{channels-1}')
+        commands += ['combos[2]->Select(0);']
+        commands += ['tabs->SetTab(2);', 'gSuFDeMonGui->DrawSelectedMacro();']
+        check('music_macro_canvas', 'gROOT->FindObject("cMUSIC1_ADC_ALL") != nullptr', 1)
+        commands += ['#include <TCanvas.h>', '#include <TPad.h>']
+        for tab, detector, instances in [(3, 'PLSCI', 6), (4, 'SCIFI', 14)]:
+            commands += [f'tabs->SetTab({tab});', 'combos.clear(); collect(tabs->GetCurrentContainer());']
+            check(detector+'_macro_count', 'combos.back()->GetNumberOfEntries()', instances * 2)
+            for instance in range(1, instances + 1):
+                channels = (8 if instance in (4, 6) else 6) if detector == 'PLSCI' else 32
+                for quantity_index, quantity in enumerate(('ADC', 'TDC')):
+                    macro_id = (instance - 1) * 2 + quantity_index
+                    canvas = f'c{detector}{instance}_{quantity}_ALL'
+                    commands += [f'combos.back()->Select({macro_id});', 'gSuFDeMonGui->DrawSelectedMacro();']
+                    check(canvas+'_pads', f'static_cast<TCanvas*>(gROOT->FindObject("{canvas}"))->GetListOfPrimitives()->GetSize()', channels)
+                    prefix = f'h{detector}{instance}_{quantity}'
+                    check(canvas+'_channels',
+                          f'[]() {{ auto* c = static_cast<TCanvas*>(gROOT->FindObject("{canvas}")); '
+                          f'int found = 0; for (int ch = 0; ch < {channels}; ++ch) '
+                          f'if (c->GetPad(ch+1)->FindObject((std::string("{prefix}") + std::to_string(ch)).c_str())) ++found; '
+                          f'return found; }}()', channels)
+                    commands += [f'delete gROOT->FindObject("{canvas}");']
 
         # Disconnect just MUSIC; verify PLSCI and SCIFI still serve histograms.
         commands.append('gSuFDeMonGui->ProcessMessage(MK_MSG(kC_COMMAND,kCM_BUTTON),101,0);')
         list_check("music_off", ordered[2:])
-        check('music_off', 'gSuFDeMonGui->ConnectedServerCount()', 17)
+        check('music_off', 'gSuFDeMonGui->ConnectedServerCount()', 20)
         commands += ['gSuFDeMonGui->SelectServer(2);', 'gSuFDeMonGui->DrawSelected();']
         check('plsci_retained', 'gSuFDeMonGui->GetHistogram()->GetName()', 'hPLSCI1_ADC0')
         # Individual toggle and group reconnect remain isolated.
         commands.append('gSuFDeMonGui->ProcessMessage(MK_MSG(kC_COMMAND,kCM_BUTTON),1002,0);')
-        check('individual_off', 'gSuFDeMonGui->ConnectedServerCount()', 16)
+        check('individual_off', 'gSuFDeMonGui->ConnectedServerCount()', 19)
         commands.append('gSuFDeMonGui->ConnectGroup(1);')
-        check('plsci_reconnect', 'gSuFDeMonGui->ConnectedServerCount()', 17)
+        check('plsci_reconnect', 'gSuFDeMonGui->ConnectedServerCount()', 20)
         commands += ['gSuFDeMonGui->DisconnectGroup(1);', 'gSuFDeMonGui->DisconnectGroup(2);']
         list_check("none", [])
         check('all_off', 'gSuFDeMonGui->ConnectedServerCount()', 0)
         commands += ['gSuFDeMonGui->ConnectGroup(0);', 'gSuFDeMonGui->ConnectGroup(1);', 'gSuFDeMonGui->ConnectGroup(2);']
-        check('all_reconnected', 'gSuFDeMonGui->ConnectedServerCount()', 19)
-        commands += ['gSuFDeMonGui->SelectServer(18);', 'gSuFDeMonGui->GetClient()->ShutdownServer();', 'gSuFDeMonGui->CheckConnection();']
+        check('all_reconnected', 'gSuFDeMonGui->ConnectedServerCount()', 22)
+        commands += ['gSuFDeMonGui->SelectServer(21);', 'gSuFDeMonGui->GetClient()->ShutdownServer();', 'gSuFDeMonGui->CheckConnection();']
         list_check("server_closed", ordered[:-1])
-        check('server_closed', 'gSuFDeMonGui->ConnectedServerCount()', 18)
+        check('server_closed', 'gSuFDeMonGui->ConnectedServerCount()', 21)
         commands += ['gSuFDeMonGui->ConnectGroup(2);']
-        check('unavailable_isolated', 'gSuFDeMonGui->ConnectedServerCount()', 18)
+        check('unavailable_isolated', 'gSuFDeMonGui->ConnectedServerCount()', 21)
         commands += ['gSuFDeMonGui->ProcessMessage(MK_MSG(kC_COMMAND,kCM_BUTTON),91,0);']
         check('global_partial_off', 'gSuFDeMonGui->ConnectedServerCount()', 0)
         commands += ['gSuFDeMonGui->ProcessMessage(MK_MSG(kC_COMMAND,kCM_BUTTON),90,0);']
-        check('global_partial_on', 'gSuFDeMonGui->ConnectedServerCount()', 18)
+        check('global_partial_on', 'gSuFDeMonGui->ConnectedServerCount()', 21)
         commands += ['gSuFDeMonGui->CloseWindow();', 'ListOfHistograms();', '.q']
         result = subprocess.run([str(build/'client/SuFDeMonGui'), 'localhost', str(ports['MUSIC1'])],
                                 input='\n'.join(commands)+'\n', text=True, capture_output=True,
@@ -137,14 +171,14 @@ try:
                                 input='std::cout << "STARTUP_PARTIAL=" << gSuFDeMonGui->ConnectedServerCount() << std::endl;\ngSuFDeMonGui->CloseWindow();\n.q\n',
                                 text=True, capture_output=True,
                                 env=dict(os.environ, CONFIG_DIR=str(configs)), cwd=repo, timeout=30)
-        assert result.returncode == 0 and 'STARTUP_PARTIAL=18' in result.stdout, result.stdout + result.stderr
+        assert result.returncode == 0 and 'STARTUP_PARTIAL=21' in result.stdout, result.stdout + result.stderr
         # A fresh client can use a server after the GUI releases its sockets.
         result = subprocess.run([str(build/'client/SuFDeMonClient'), 'localhost', str(ports['SCIFI13'])],
                                 input='ListOfHistograms();\nstd::cout << "PING=" << SuFDeMonPing() << std::endl;\n.q\n',
                                 text=True, capture_output=True, timeout=10)
         assert 'hSCIFI13_TDC31' in result.stdout
         assert 'PING=1' in result.stdout, result.stdout + result.stderr
-        print('PASS: 19 simultaneous GUI connections, group isolation, individual toggle, drawing, reconnect, and cleanup')
+        print('PASS: 22 simultaneous GUI connections, group isolation, individual toggle, drawing, reconnect, and cleanup')
 finally:
     for s in reservations:
         s.close()

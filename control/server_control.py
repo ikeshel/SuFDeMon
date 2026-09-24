@@ -43,14 +43,14 @@ class ServerControlWindow(QMainWindow):
         self.action_generation = 0
         self.poll_generation = 0
         self.decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
-        self.setWindowTitle("SuFDeMon — Server Control")
+        self.setWindowTitle("SuFDeMon---Server Control")
         self.resize(960, 800)
         self.server_buttons = {}
         self.server_states = {}
         self.last_status_error = None
 
         self.output_dialog = QDialog(self)
-        self.output_dialog.setWindowTitle("SuFDeMon — Script Output")
+        self.output_dialog.setWindowTitle("SuFDeMon---Script Output")
         self.output_dialog.resize(780, 420)
         output_layout = QVBoxLayout(self.output_dialog)
         self.output = QPlainTextEdit()
@@ -66,7 +66,7 @@ class ServerControlWindow(QMainWindow):
         self.setCentralWidget(central)
 
         # Row 1: general actions for every local server session.
-        general = QGroupBox("General — all local servers")
+        general = QGroupBox("General---all local servers")
         general_layout = QVBoxLayout(general)
         general_layout.addWidget(QLabel("Run server processes on this PC using GNU Screen."))
         buttons = QHBoxLayout()
@@ -144,7 +144,7 @@ class ServerControlWindow(QMainWindow):
         for name, button in self.server_buttons.items():
             state = self.server_states.get(name)
             button.setEnabled(not self.busy and state is not None)
-            label = "Running — Stop" if state is True else "Stopped — Start" if state is False else "Checking / unavailable"
+            label = "Running---Stop" if state is True else "Stopped---Start" if state is False else "Checking / unavailable"
             button.setText(f"{name}\n{label}")
             color = "#176c37" if state is True else "#454e5a" if state is False else "#885800"
             button.setStyleSheet(f"QPushButton {{ color: white; background: {color}; border-radius: 4px; padding: 4px; }}"
@@ -189,7 +189,7 @@ class ServerControlWindow(QMainWindow):
             column.addStretch()
         if errors:
             self.output.appendPlainText("\n".join(errors))
-        self.statusBar().showMessage(f"{len(self.server_buttons)} configurations loaded — checking local sessions…")
+        self.statusBar().showMessage(f"{len(self.server_buttons)} configurations loaded---checking local sessions…")
 
     def run_group(self, action: str, detector: str):
         names = self.group_servers[detector]
@@ -213,7 +213,7 @@ class ServerControlWindow(QMainWindow):
         self.server_states = dict.fromkeys(self.server_buttons)
         self.update_buttons()
         if not self.busy:
-            self.statusBar().showMessage("Screen status unavailable — see Script Output")
+            self.statusBar().showMessage("Screen status unavailable---see Script Output")
         if message != self.last_status_error:
             self.output.appendPlainText(message)
             self.last_status_error = message
@@ -251,7 +251,7 @@ class ServerControlWindow(QMainWindow):
         self.update_buttons()
         self.statusBar().showMessage(
             f"{sum(value is True for value in self.server_states.values())}/{len(self.server_buttons)} local Screen sessions running"
-            + (" — stale sessions require inspection with screen -ls" if stale else ""))
+            + ("---stale sessions require inspection with screen -ls" if stale else ""))
 
     def open_output(self):
         self.output_dialog.show()
@@ -292,7 +292,7 @@ class ServerControlWindow(QMainWindow):
         if error == QProcess.ProcessError.FailedToStart:
             self.busy = False
             self.update_buttons()
-            self.statusBar().showMessage("Could not launch script — see Script Output")
+            self.statusBar().showMessage("Could not launch script---see Script Output")
         self.open_output()
 
     def process_finished(self, code: int, status: QProcess.ExitStatus):
@@ -301,9 +301,9 @@ class ServerControlWindow(QMainWindow):
         self.busy = False
         self.update_buttons()
         if status == QProcess.ExitStatus.NormalExit and code == 0:
-            self.statusBar().showMessage("Script completed successfully — see Script Output for details")
+            self.statusBar().showMessage("Script completed successfully---see Script Output for details")
         else:
-            self.statusBar().showMessage(f"Script failed (exit {code}) — see Script Output")
+            self.statusBar().showMessage(f"Script failed (exit {code})---see Script Output")
             self.open_output()
         self.poll_status()
 

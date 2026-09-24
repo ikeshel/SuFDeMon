@@ -55,6 +55,7 @@ int main(int argc, char** argv)
         Require(info == "type=" + type + "\ninstance=" + instance
             + "\nhostname=localhost\nport=" + std::to_string(port) + "\n", "Incorrect identity");
         const auto list = Request(*socket, "LIST");
+        const int channels = type == "PLSCI" ? ((instance == "PLSCI4" || instance == "PLSCI6") ? 8 : 6) : 32;
         if (type == "MUSIC") {
             Require(std::count(list.begin(), list.end(), '\n') == 192, "MUSIC histogram count changed");
             Require(list.find("h" + instance + "_FC3_ADC31\n") != std::string::npos,
@@ -70,12 +71,17 @@ int main(int argc, char** argv)
             Require(Request(*socket, "CLEAR " + name) == "OK", "CLEAR failed");
             Require(Get(*socket, name)->GetNbinsX() == 4096, "Histogram binning changed");
         } else {
-            Require(std::count(list.begin(), list.end(), '\n') == 64, "ADC/TDC count changed");
+            Require(std::count(list.begin(), list.end(), '\n') == channels * 2, "ADC/TDC count changed");
         }
         for (const std::string quantity : {"ADC", "TDC"}) {
+            if (type == "PLSCI") {
+                const auto invalid = "h" + instance + "_" + quantity + std::to_string(channels);
+                Require(Request(*socket, "GET " + invalid) == "ERROR histogram not found", "Nonexistent PMT exposed");
+                Require(Request(*socket, "CLEAR " + invalid) == "ERROR histogram not found", "Nonexistent PMT cleared");
+            }
             const int cages = type == "MUSIC" ? 3 : 0;
             for (int fc = cages ? 1 : 0; fc <= cages; ++fc) {
-                for (int channel = 0; channel < 32; ++channel) {
+                for (int channel = 0; channel < channels; ++channel) {
                     const auto name = "h" + instance + "_" +
                         (fc ? "FC" + std::to_string(fc) + "_" : "") + quantity + std::to_string(channel);
                     Require(list.find(name + "\n") != std::string::npos, "Missing ADC/TDC channel");

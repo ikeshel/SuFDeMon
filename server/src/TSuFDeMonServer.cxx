@@ -65,9 +65,11 @@ TSuFDeMonServer::~TSuFDeMonServer()
 void TSuFDeMonServer::CreateHistograms()
 {
     const bool music = fConfig.type == SuFDeMon::DetectorType::MUSIC;
+    const int channels = fConfig.type == SuFDeMon::DetectorType::PLSCI
+        ? SuFDeMon::PlsciPmtCount(fConfig.instance.c_str()) : SuFDeMon::kNAdcChannels;
     for (const std::string quantity : {"ADC", "TDC"}) {
         for (int fc = music ? 1 : 0; fc <= (music ? SuFDeMon::kNFieldCages : 0); ++fc) {
-            for (int channel = 0; channel < SuFDeMon::kNAdcChannels; ++channel) {
+            for (int channel = 0; channel < channels; ++channel) {
                 const auto name = SuFDeMon::DetectorHistogramName(fConfig.instance, quantity, channel, fc);
                 const auto title = name + ";" + quantity + " [raw counts];Counts";
                 auto histogram = std::make_unique<TH1D>(name.c_str(), title.c_str(), 4096, 0.0, 4096.0);
@@ -81,10 +83,12 @@ void TSuFDeMonServer::CreateHistograms()
 void TSuFDeMonServer::FillHistograms()
 {
     std::lock_guard<std::mutex> lock(fHistogramMutex);
+    const int channels = fConfig.type == SuFDeMon::DetectorType::PLSCI
+        ? SuFDeMon::PlsciPmtCount(fConfig.instance.c_str()) : SuFDeMon::kNAdcChannels;
     for (std::size_t i = 0; i < fHistograms.size(); ++i) {
         const auto fc = fConfig.type == SuFDeMon::DetectorType::MUSIC
             ? (i / SuFDeMon::kNAdcChannels) % SuFDeMon::kNFieldCages : 0;
-        const auto adc = i % SuFDeMon::kNAdcChannels;
+        const auto adc = i % channels;
         const double mean = 1500.0 + 250.0 * fc + 5.0 * adc;
         const double sigma = 120.0 + 10.0 * fc;
         fHistograms[i]->Fill(fRandom->Gaus(mean, sigma));

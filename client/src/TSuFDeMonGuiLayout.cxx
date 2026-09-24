@@ -29,6 +29,8 @@
 #include <TTimer.h>
 
 #include <algorithm>
+#include <cstdlib>
+#include <filesystem>
 #include <string>
 
 extern TSuFDeMonGui* gSuFDeMonGui;
@@ -271,6 +273,61 @@ void TSuFDeMonGui::BuildDetectorTab(TGCompositeFrame* tab, int group)
     tab->AddFrame(
         controls,
         new TGLayoutHints(kLHintsExpandX, 8, 8, 4, 4));
+
+    {
+        const std::string detector = std::array<std::string, 3>{"MUSIC", "PLSCI", "SCIFI"}[group];
+        auto* macros = new TGGroupFrame(tab, ("Custom " + detector + " Drawings").c_str(), kVerticalFrame);
+        auto* macroRow = new TGHorizontalFrame(macros);
+        auto* macroCombo = new TGComboBox(macroRow);
+        fMacroCombos[group] = macroCombo;
+        macroCombo->Resize(360, 24);
+        auto* drawMacroButton = new TGTextButton(macroRow, "Draw macro");
+        auto& paths = fMacroPaths[group];
+
+        std::filesystem::path macroDirectory;
+        if (const char* configured = std::getenv("SUFDEMON_MACRO_DIR"))
+            macroDirectory = std::filesystem::path(configured) / detector;
+        if (macroDirectory.empty() || !std::filesystem::is_directory(macroDirectory)) {
+            for (const auto& candidate : {
+                     std::filesystem::path("macros") / detector,
+                     std::filesystem::path("../macros") / detector,
+                     std::filesystem::path("../../macros") / detector}) {
+                if (std::filesystem::is_directory(candidate)) {
+                    macroDirectory = std::filesystem::absolute(candidate);
+                    break;
+                }
+            }
+        }
+
+        std::vector<std::string> macroNames;
+        const int instances = std::array<int, 3>{2, 6, 14}[group];
+        for (int instance = 1; instance <= instances; ++instance)
+            for (const std::string quantity : {"ADC", "TDC"})
+                macroNames.push_back("Draw_" + detector + std::to_string(instance)
+                    + "_" + quantity + "_ALL.C");
+        for (const auto& macroName : macroNames) {
+            const auto path = macroDirectory / macroName;
+            if (!std::filesystem::is_regular_file(path))
+                continue;
+            const int id = static_cast<int>(paths.size());
+            paths.push_back(path.string());
+            macroCombo->AddEntry(macroName.c_str(), id);
+        }
+        if (!paths.empty())
+            macroCombo->Select(0);
+        else
+            drawMacroButton->SetEnabled(kFALSE);
+
+        macroRow->AddFrame(macroCombo,
+            new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 2, 8, 4, 4));
+        macroRow->AddFrame(drawMacroButton,
+            new TGLayoutHints(kLHintsCenterY, 2, 2, 4, 4));
+        macros->AddFrame(macroRow, new TGLayoutHints(kLHintsExpandX));
+        tab->AddFrame(macros,
+            new TGLayoutHints(kLHintsExpandX, 8, 8, 4, 4));
+        drawMacroButton->Connect(
+            "Clicked()", "TSuFDeMonGui", this, "DrawSelectedMacro()");
+    }
 
     fServerCombo->Connect(
         "Selected(Int_t)", "TSuFDeMonGui", this, "SelectServer(Int_t)");

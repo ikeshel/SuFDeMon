@@ -33,6 +33,15 @@ void ListOfHistograms()
     gSuFDeMonGui->ListOfHistograms();
 }
 
+TH1D* SuFDeMonGet(const char* name)
+{
+    if (!gSuFDeMonGui) {
+        std::cerr << "The SuFDeMon GUI is not available.\n";
+        return nullptr;
+    }
+    return gSuFDeMonGui->FetchHistogram(name);
+}
+
 int main(int argc, char** argv)
 {
     std::string host = "localhost";
@@ -63,12 +72,18 @@ int main(int argc, char** argv)
 
     gSuFDeMonGui = new TSuFDeMonGui(gClient->GetRoot(), 430, 360, host, port);
 
-    gInterpreter->Declare("#include \"TSuFDeMonGui.h\"\nextern TSuFDeMonGui* gSuFDeMonGui;\nvoid ListOfHistograms();");
+    gInterpreter->Declare(
+        "#include \"TSuFDeMonGui.h\"\n"
+        "class TH1D;\n"
+        "extern TSuFDeMonGui* gSuFDeMonGui;\n"
+        "void ListOfHistograms();\n"
+        "TH1D* SuFDeMonGet(const char*);\n");
 
     std::cout << "\nSuFDeMon GUI started. ROOT command line is active.\n"
               << "The control window and TCanvas are separate windows.\n"
               << "Global GUI pointer: gSuFDeMonGui\n"
-              << "Use ListOfHistograms() to list histograms from all connected servers.\n\n";
+              << "Use ListOfHistograms() to list histograms from all connected servers.\n"
+              << "Use SuFDeMonGet(\"histogram-name\") to fetch a histogram.\n\n";
 
     application.Run();
 

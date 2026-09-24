@@ -98,7 +98,7 @@ class ControlTests(unittest.TestCase):
 
     def test_individual_toggle_and_layout(self):
         w = self.window
-        self.assertEqual([w.column_layouts[k].count()-2 for k in ('MUSIC','PLSCI','SCIFI')], [2,3,14])
+        self.assertEqual([w.column_layouts[k].count()-2 for k in ('MUSIC','PLSCI','SCIFI')], [2,6,14])
         self.assertEqual(list(w.server_buttons)[-5:], ['SCIFI10','SCIFI11','SCIFI12','SCIFI13','SCIFI14'])
         w.server_buttons['MUSIC1'].click()
         self.assertTrue(w.busy)
@@ -147,7 +147,7 @@ class ControlTests(unittest.TestCase):
         w = self.window
         w.start_all.click()
         self.wait(lambda: not w.busy and all(w.server_states.values()))
-        self.assertEqual(len(json.loads(self.state.read_text())), 19)
+        self.assertEqual(len(json.loads(self.state.read_text())), 22)
         sessions=json.loads(self.state.read_text());sessions.remove('SuFDeMon-SCIFI14')
         self.state.write_text(json.dumps(sessions))
         w.poll_status()

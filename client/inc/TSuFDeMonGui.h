@@ -49,6 +49,8 @@ public:
     void DisconnectGroup(Int_t group);
     int ConnectedServerCount() const;
     void ListOfHistograms();
+    TH1D* FetchHistogram(const char* name);
+    void DrawSelectedMacro();
     void DrawSelected();
     void ClearSelected();
     void ClearAllHistograms();
@@ -113,6 +115,7 @@ private:
     TGTextButton* fCloseAllButton = nullptr;
     TGTextButton* fGeneralStatusButton = nullptr;
     TGTextButton* fRefreshServerConnectionsButton = nullptr;
+    std::array<TGComboBox*, 3> fMacroCombos{}; //!
     TGCheckButton* fAutoUpdateCheck = nullptr;
     TGNumberEntry* fUpdateIntervalEntry = nullptr;
     TGLabel* fGeneralStatusLabel = nullptr;
@@ -124,12 +127,14 @@ private:
     std::vector<int> fServerPorts;
     std::vector<int> fServerStates;
     std::vector<TGTextButton*> fServerButtons;
+    std::array<std::vector<std::string>, 3> fMacroPaths;
 
     std::string fConnectedDetectorType = "MUSIC";
     std::string fConnectedInstance = "MUSIC1";
     std::vector<std::shared_ptr<TSuFDeMonClient>> fServerClients; //!
     std::shared_ptr<TSuFDeMonClient> fClient; //!
     std::unique_ptr<TH1D> fHistogram;
+    std::vector<std::unique_ptr<TH1D>> fPromptHistograms; //!
     TCanvas* fCanvas = nullptr;
     TTimer* fUpdateTimer = nullptr;
     TTimer* fConnectionTimer = nullptr;

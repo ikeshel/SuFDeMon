@@ -11,7 +11,7 @@ reservations = []
 try:
     # Reserve distinct local ports, releasing each just before its server starts.
     configs = sorted((source / 'config/servers').glob('*.conf'))
-    assert len(configs) == 19
+    assert len(configs) == 22
     for _ in configs:
         reservation = socket.socket()
         reservation.bind(('127.0.0.1', 0))
@@ -52,7 +52,7 @@ try:
             config.write_text(content)
             assert subprocess.run([str(generic), '--config', str(config)],
                                   capture_output=True, timeout=5).returncode != 0
-    print('PASS: 19 instances, ROOT protocol, histogram transfer, shutdown and invalid configs')
+    print('PASS: 22 instances, ROOT protocol, histogram transfer, shutdown and invalid configs')
 finally:
     for reservation in reservations:
         reservation.close()

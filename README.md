@@ -115,7 +115,7 @@ Three dedicated executables share the server transport and protocol:
 | Type | Executable | Example instances | Histogram status |
 | --- | --- | --- | --- |
 | MUSIC | `SuFDeMonMUSICServer` | MUSIC1, MUSIC2 | 3 × 32 ADC + 3 × 32 TDC histograms |
-| PLSCI | `SuFDeMonPLSCIServer` | PLSCI1, PLSCI2, PLSCI3 | 32 ADC + 32 TDC histograms (provisional layout) |
+| PLSCI | `SuFDeMonPLSCIServer` | PLSCI1–PLSCI6 | One ADC and one TDC histogram per PMT: 6 or 8 of each |
 | SCIFI | `SuFDeMonSCIFIServer` | SCIFI1–SCIFI14 | 32 ADC + 32 TDC histograms (provisional layout) |
 
 Build with `make servers` or the normal CMake build. Each process owns its
@@ -139,7 +139,7 @@ server machine:
 # Likewise SCIFI2.conf through SCIFI14.conf, each on its readout PC.
 ```
 
-Example ports are MUSIC `10001–10002`, PLSCI `10101–10103`, and SCIFI
+Example ports are MUSIC `10001–10002`, PLSCI `10101–10106`, and SCIFI
 `10201–10214`; each can be changed independently. The same port also works on
 different machines. For multiple processes on
 one machine, assign distinct ports. Command-line options override config values:
@@ -161,8 +161,16 @@ and automatic updates for all types; field cages apply only to MUSIC.
 
 All histograms currently contain simulated data. ADC and TDC use 4096 bins
 from 0 to 4096 in raw counts; TDC values are not calibrated time units.
-PLSCI and SCIFI provisionally use channels 0–31 for each quantity, pending
-hardware-specific channel maps and timing ranges.
+PLSCI has six detectors, with one ADC and one TDC histogram per PMT:
+
+| Detectors | PMTs | ADC channels | TDC channels | Histograms per detector |
+| --- | --- | --- | --- | --- |
+| PLSCI1, PLSCI2, PLSCI3, PLSCI5 | 6 | 0–5 | 0–5 | 12 |
+| PLSCI4, PLSCI6 | 8 | 0–7 | 0–7 | 16 |
+
+There are 40 PLSCI PMTs and 80 PLSCI histograms in total. The GUI channel
+selector follows the selected detector. Restart the PLSCI servers after
+rebuilding to apply this layout. SCIFI retains its provisional channels 0–31.
 
 ### Running servers in Screen
 
@@ -174,7 +182,7 @@ ROOT environment as usual. Run these scripts on each detector readout PC:
 ./scripts/start_servers.sh MUSIC1
 ./scripts/start_servers.sh PLSCI2 SCIFI14
 
-# For local testing, start all 19 configurations.
+# For local testing, start all 22 configurations.
 ./scripts/start_servers.sh
 
 screen -ls
@@ -209,14 +217,14 @@ python3 control/server_control.py
 ```
 
 The top row starts or stops all local servers. The second row has MUSIC (2),
-PLSCI (3), and SCIFI (14) columns with one toggle button per instance. Buttons
+PLSCI (6), and SCIFI (14) columns with one toggle button per instance. Buttons
 show the local Screen-session state and start or stop that server when clicked.
 See [control/README.md](control/README.md) for requirements, behavior, and tests.
 
 ### Server checks
 
 With testing enabled (the default), run `ctest --test-dir build --output-on-failure`.
-The integration test launches all 19 example instances locally on separate
+The integration test launches all 22 example instances locally on separate
 ports, checks their identity and histogram behavior, and shuts them down.
 
 ## Running the server
@@ -284,13 +292,74 @@ The histogram canvas is intentionally a normal, separate ROOT `TCanvas`, rather 
 
 The GUI application also runs `TRint`, so the normal interactive ROOT prompt remains available while the GUI is running. Use `ListOfHistograms()` there to list histogram names from all connected servers, in detector and instance order. The histogram-server selection does not restrict this list.
 
+### Fetching histograms from the GUI ROOT prompt
+
+The GUI prompt exposes `SuFDeMonGet()` as well as `ListOfHistograms()`. The
+histogram name determines which connected server receives the request, so the
+selected drawing tab does not need to match the histogram:
+
+```cpp
+root [0] ListOfHistograms()
+root [1] TH1D* h = SuFDeMonGet("hSCIFI14_TDC0")
+root [2] h->Draw()
+root [3] h->GetEntries()
+root [4] h->GetMean()
+```
+
+`SuFDeMonGet()` returns `nullptr` and prints a diagnostic if the named server is
+disconnected, the histogram does not exist, or the name does not match a
+configured instance. Histograms fetched from the prompt are snapshots owned by
+the GUI and remain valid until the GUI closes.
+
+### MUSIC drawing macros
+
+The MUSIC tab has a **Custom MUSIC Drawings** list and a **Draw macro** button.
+The supplied macros draw all 96 channels for one instance and quantity on a
+12-by-8 canvas:
+
+```text
+macros/MUSIC/Draw_MUSIC1_ADC_ALL.C
+macros/MUSIC/Draw_MUSIC1_TDC_ALL.C
+macros/MUSIC/Draw_MUSIC2_ADC_ALL.C
+macros/MUSIC/Draw_MUSIC2_TDC_ALL.C
+```
+
+They can also be run directly from the GUI ROOT prompt:
+
+```cpp
+root [5] .x macros/MUSIC/Draw_MUSIC1_ADC_ALL.C
+root [6] .x macros/MUSIC/Draw_MUSIC2_TDC_ALL.C
+```
+
+The relevant MUSIC server must be connected. Set `SUFDEMON_MACRO_DIR` to the
+parent macro directory if the GUI is launched outside the repository tree.
+
+### PLSCI and SCIFI drawing macros
+
+The PLSCI and SCIFI tabs each have their own **Custom Drawings** selector and
+**Draw macro** button. ADC and TDC macros are provided for PLSCI1–PLSCI6 and
+SCIFI1–SCIFI14. PLSCI macros use a 3-by-2 canvas for six PMTs or a 4-by-2
+canvas for eight PMTs. SCIFI draws channels 0–31 on an 8-by-4 canvas, using the instance
+named in the macro regardless of the single-histogram server selection.
+
+```cpp
+root [7] .x macros/PLSCI/Draw_PLSCI1_ADC_ALL.C
+root [8] .x macros/PLSCI/Draw_PLSCI3_TDC_ALL.C
+root [9] .x macros/SCIFI/Draw_SCIFI1_ADC_ALL.C
+root [10] .x macros/SCIFI/Draw_SCIFI14_TDC_ALL.C
+```
+
+The corresponding server must be connected. These macros draw snapshots;
+click **Draw macro** again to fetch fresh data. `SUFDEMON_MACRO_DIR` applies to
+all three detector subdirectories.
+
 Group disconnects close client sockets only; server processes keep running.
 Closing the client releases all its connections. **Close server** shuts down the
 selected histogram server; **Close All** shuts down all connected servers and
 closes the client.
 
 The `gui_connections` CTest integration test uses temporary server configurations
-and isolated ports to exercise all 19 connections. It needs an X display and is
+and isolated ports to exercise all 22 connections. It needs an X display and is
 skipped when `DISPLAY` is unset; use `xvfb-run ctest --test-dir build -R gui_connections`
 for a virtual display.
 
@@ -302,7 +371,8 @@ The command-line client can be started with:
 ./build/client/SuFDeMonClient localhost 10001
 ```
 
-It provides a normal ROOT prompt with SuFDeMon helper functions. For example:
+This separate single-server client also provides a normal ROOT prompt with
+SuFDeMon helper functions. For example:
 
 ```cpp
 root [0] SuFDeMonPing()
