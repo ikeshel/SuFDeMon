@@ -13,6 +13,8 @@
 #include "TSuFDeMonGui.h"
 
 #include <TGButton.h>
+#include <TGComboBox.h>
+#include "TSuFDeMonClient.h"
 #include <TGFrame.h>
 #include <TGLabel.h>
 
@@ -28,6 +30,8 @@
 namespace
 {
 constexpr Int_t kConfiguredServerButtonBase = 1000;
+constexpr Int_t kConnectAllButton = 90;
+constexpr Int_t kDisconnectAllButton = 91;
 
 struct ServerConfig
 {
@@ -159,6 +163,15 @@ void TSuFDeMonGui::BuildServerConnectionsTab(TGCompositeFrame* tab)
         new TGGroupFrame(tab, "Configured Server Connections", kVerticalFrame);
     auto* overviewRow = new TGHorizontalFrame(overview);
 
+    auto* connectAll = new TGTextButton(overviewRow, "Connect all", kConnectAllButton);
+    auto* disconnectAll = new TGTextButton(overviewRow, "Disconnect all", kDisconnectAllButton);
+    connectAll->Associate(this);
+    disconnectAll->Associate(this);
+    connectAll->SetToolTipText("Connect to all configured servers");
+    disconnectAll->SetToolTipText("Disconnect from all servers; leave server processes running");
+    overviewRow->AddFrame(connectAll, new TGLayoutHints(kLHintsCenterY, 4, 4, 8, 8));
+    overviewRow->AddFrame(disconnectAll, new TGLayoutHints(kLHintsCenterY, 4, 4, 8, 8));
+
     fRefreshServerConnectionsButton =
         new TGTextButton(overviewRow, "Refresh Status");
     fServerConnectionsSummaryLabel =
@@ -173,12 +186,11 @@ void TSuFDeMonGui::BuildServerConnectionsTab(TGCompositeFrame* tab)
     overview->AddFrame(
         overviewRow,
         new TGLayoutHints(kLHintsExpandX, 0, 0, 2, 2));
-    tab->AddFrame(
-        overview,
-        new TGLayoutHints(kLHintsExpandX, 8, 8, 4, 4));
 
     fRefreshServerConnectionsButton->Connect(
         "Clicked()", "TSuFDeMonGui", this, "RefreshServerConnections()");
+
+    tab->AddFrame(overview, new TGLayoutHints(kLHintsExpandX, 8, 8, 4, 4));
 
     auto* columns = new TGHorizontalFrame(tab);
     auto* musicGroup = new TGGroupFrame(columns, "MUSIC", kVerticalFrame);
@@ -195,6 +207,18 @@ void TSuFDeMonGui::BuildServerConnectionsTab(TGCompositeFrame* tab)
         scifiGroup,
         new TGLayoutHints(kLHintsExpandX | kLHintsExpandY, 3, 3, 3, 3));
 
+    const std::vector<TGGroupFrame*> groups = {musicGroup, plsciGroup, scifiGroup};
+    for (std::size_t i = 0; i < groups.size(); ++i) {
+        auto* row = new TGHorizontalFrame(groups[i]);
+        auto* connect = new TGTextButton(row, "Connect all", 100 + 2*i);
+        auto* disconnect = new TGTextButton(row, "Disconnect all", 101 + 2*i);
+        connect->Associate(this);
+        disconnect->Associate(this);
+        row->AddFrame(connect, new TGLayoutHints(kLHintsExpandX, 2, 2, 3, 3));
+        row->AddFrame(disconnect, new TGLayoutHints(kLHintsExpandX, 2, 2, 3, 3));
+        groups[i]->AddFrame(row, new TGLayoutHints(kLHintsExpandX));
+    }
+
     const auto configs = ReadServerConfigs();
     for (std::size_t index = 0; index < configs.size(); ++index) {
         const auto& config = configs[index];
@@ -209,6 +233,11 @@ void TSuFDeMonGui::BuildServerConnectionsTab(TGCompositeFrame* tab)
         fServerHosts.push_back(config.hostname);
         fServerPorts.push_back(config.port);
         fServerStates.push_back(0);
+        fServerClients.push_back(nullptr);
+        auto* selector = fDetectorControls[DetectorOrder(config.type)].server;
+        selector->AddEntry(config.instance.c_str(), static_cast<Int_t>(fServerButtons.size()));
+        if (selector->GetSelected() < 0)
+            selector->Select(static_cast<Int_t>(fServerButtons.size()), kFALSE);
 
         const std::size_t storedIndex = fServerButtons.size();
         const Int_t buttonId =
@@ -241,6 +270,20 @@ void TSuFDeMonGui::BuildServerConnectionsTab(TGCompositeFrame* tab)
 Bool_t TSuFDeMonGui::ProcessMessage(
     Longptr_t msg, Longptr_t parm1, Longptr_t parm2)
 {
+    if (GET_MSG(msg) == kC_COMMAND && GET_SUBMSG(msg) == kCM_BUTTON &&
+        (parm1 == kConnectAllButton || parm1 == kDisconnectAllButton)) {
+        for (int group = 0; group < 3; ++group) {
+            if (parm1 == kConnectAllButton) ConnectGroup(group);
+            else DisconnectGroup(group);
+        }
+        return kTRUE;
+    }
+    if (GET_MSG(msg) == kC_COMMAND && GET_SUBMSG(msg) == kCM_BUTTON &&
+        parm1 >= 100 && parm1 < 106) {
+        if ((parm1 - 100) % 2 == 0) ConnectGroup((parm1 - 100) / 2);
+        else DisconnectGroup((parm1 - 100) / 2);
+        return kTRUE;
+    }
     if (GET_MSG(msg) == kC_COMMAND &&
         GET_SUBMSG(msg) == kCM_BUTTON &&
         parm1 >= kConfiguredServerButtonBase) {

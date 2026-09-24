@@ -31,6 +31,8 @@
 #include <algorithm>
 #include <string>
 
+extern TSuFDeMonGui* gSuFDeMonGui;
+
 ClassImp(TSuFDeMonGui)
 
 TSuFDeMonGui::TSuFDeMonGui(const TGWindow* parent, UInt_t width, UInt_t height,
@@ -62,30 +64,157 @@ TSuFDeMonGui::TSuFDeMonGui(const TGWindow* parent, UInt_t width, UInt_t height,
         generalStatus,
         new TGLayoutHints(kLHintsExpandX, 8, 8, 8, 4));
 
-    // Histogram selection controls remain on the General tab.
-    auto* controls = new TGGroupFrame(generalTab, "Select Histogram", kVerticalFrame);
+    BuildDetectorTab(fTabs->AddTab("MUSIC"), 0);
+    BuildDetectorTab(fTabs->AddTab("PLSCI"), 1);
+    BuildDetectorTab(fTabs->AddTab("SCIFI"), 2);
+    ActivateDetectorControls(0);
 
-    auto* fcRow = new TGHorizontalFrame(controls);
-    fcRow->AddFrame(
-        new TGLabel(fcRow, "Field Cage:"),
+    // Process controls stay on the General tab.
+    auto* processControls =
+        new TGGroupFrame(generalTab, "Process Control", kVerticalFrame);
+    auto* processRow = new TGHorizontalFrame(processControls);
+    fCloseClientButton = new TGTextButton(processRow, "Close client");
+    fCloseServerButton = new TGTextButton(processRow, "Close server");
+    fCloseAllButton = new TGTextButton(processRow, "Close All");
+    fCloseServerButton->SetToolTipText("Shut down the selected histogram server");
+    fCloseAllButton->SetToolTipText("Shut down all connected servers and close the client");
+    processRow->AddFrame(
+        fCloseClientButton,
+        new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 4, 0, 0));
+    processRow->AddFrame(
+        fCloseServerButton,
+        new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 4, 0, 0));
+    processRow->AddFrame(
+        fCloseAllButton,
+        new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 4, 0, 0));
+    processControls->AddFrame(
+        processRow,
+        new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 0, 0, 12, 12));
+    generalTab->AddFrame(
+        processControls,
+        new TGLayoutHints(kLHintsExpandX, 8, 8, 4, 8));
+
+    BuildServerConnectionsTab(serverConnectionsTab);
+
+    AddFrame(
+        fTabs,
+        new TGLayoutHints(kLHintsExpandX | kLHintsExpandY, 6, 6, 6, 6));
+
+    // Timers.
+    fUpdateTimer = new TTimer(1000, kTRUE);
+    fConnectionTimer = new TTimer(1000, kTRUE);
+    fConnectionTimer->Connect(
+        "Timeout()", "TSuFDeMonGui", this, "CheckConnection()");
+
+    // Signals and slots.
+    fGeneralStatusButton->Connect(
+        "Clicked()", "TSuFDeMonGui", this, "DisplayGeneralStatus()");
+    fTabs->Connect("Selected(Int_t)", "TSuFDeMonGui", this, "DetectorTabSelected(Int_t)");
+    fCloseClientButton->Connect(
+        "Clicked()", "TSuFDeMonGui", this, "CloseClient()");
+    fCloseServerButton->Connect(
+        "Clicked()", "TSuFDeMonGui", this, "CloseServer()");
+    fCloseAllButton->Connect(
+        "Clicked()", "TSuFDeMonGui", this, "CloseAll()");
+    fUpdateTimer->Connect(
+        "Timeout()", "TSuFDeMonGui", this, "AutoUpdate()");
+
+    UpdateHistogramName();
+    SetConnectedUi(false);
+
+    MapSubwindows();
+    const TGDimension defaultSize = GetDefaultSize();
+    const UInt_t windowWidth = std::max<UInt_t>(960, defaultSize.fWidth);
+    const UInt_t windowHeight = std::max<UInt_t>(700, defaultSize.fHeight);
+    Resize(windowWidth, windowHeight);
+    MapWindow();
+
+    // Keep General as the startup tab.
+    fTabs->SetTab(0, kFALSE);
+
+    // Try every configured server; failed connections remain available for retry.
+    for (int group = 0; group < 3; ++group) ConnectGroup(group);
+
+    // Prefer the requested endpoint for drawing when it is connected.
+    for (std::size_t i = 0; i < fServerHosts.size(); ++i) {
+        if (fServerHosts[i] == host && fServerPorts[i] == port &&
+            fServerClients[i] && fServerClients[i]->IsConnected()) {
+            SelectServer(static_cast<Int_t>(i));
+            break;
+        }
+    }
+    fConnectionTimer->Start(1000, kTRUE);
+
+    if (fClient && fClient->IsConnected())
+        DrawSelected();
+}
+
+TSuFDeMonGui::~TSuFDeMonGui()
+{
+    if (gSuFDeMonGui == this)
+        gSuFDeMonGui = nullptr;
+    if (fConnectionTimer) {
+        fConnectionTimer->TurnOff();
+        delete fConnectionTimer;
+        fConnectionTimer = nullptr;
+    }
+    if (fUpdateTimer) {
+        fUpdateTimer->TurnOff();
+        delete fUpdateTimer;
+        fUpdateTimer = nullptr;
+    }
+    for (auto& client : fServerClients)
+        if (client) client->Disconnect();
+}
+
+void TSuFDeMonGui::BuildDetectorTab(TGCompositeFrame* tab, int group)
+{
+    auto* controls = new TGGroupFrame(tab, "Select Histogram", kVerticalFrame);
+
+    auto* serverRow = new TGHorizontalFrame(controls);
+    serverRow->AddFrame(new TGLabel(serverRow, "Histogram server:"),
         new TGLayoutHints(kLHintsCenterY, 2, 8, 4, 4));
-    fFieldCageCombo = new TGComboBox(fcRow);
-    for (int fc = 1; fc <= SuFDeMon::kNFieldCages; ++fc)
-        fFieldCageCombo->AddEntry(("FC" + std::to_string(fc)).c_str(), fc);
-    fFieldCageCombo->Select(1);
-    fFieldCageCombo->Resize(160, 24);
-    fcRow->AddFrame(
-        fFieldCageCombo,
-        new TGLayoutHints(kLHintsExpandX, 2, 2, 4, 4));
-    controls->AddFrame(fcRow, new TGLayoutHints(kLHintsExpandX));
+    fServerCombo = new TGComboBox(serverRow);
+    fServerCombo->Resize(240, 24);
+    serverRow->AddFrame(fServerCombo, new TGLayoutHints(kLHintsExpandX, 2, 2, 4, 4));
+    controls->AddFrame(serverRow, new TGLayoutHints(kLHintsExpandX));
+
+    fFieldCageCombo = nullptr;
+    if (group == 0) {
+        auto* fcRow = new TGHorizontalFrame(controls);
+        fcRow->AddFrame(
+            new TGLabel(fcRow, "Field Cage:"),
+            new TGLayoutHints(kLHintsCenterY, 2, 8, 4, 4));
+        fFieldCageCombo = new TGComboBox(fcRow);
+        for (int fc = 1; fc <= SuFDeMon::kNFieldCages; ++fc)
+            fFieldCageCombo->AddEntry(("FC" + std::to_string(fc)).c_str(), fc);
+        fFieldCageCombo->Select(1);
+        fFieldCageCombo->Resize(160, 24);
+        fcRow->AddFrame(
+            fFieldCageCombo,
+            new TGLayoutHints(kLHintsExpandX, 2, 2, 4, 4));
+        controls->AddFrame(fcRow, new TGLayoutHints(kLHintsExpandX));
+
+    }
+
+    auto* quantityRow = new TGHorizontalFrame(controls);
+    quantityRow->AddFrame(new TGLabel(quantityRow, "Quantity:"),
+        new TGLayoutHints(kLHintsCenterY, 2, 8, 4, 4));
+    fQuantityCombo = new TGComboBox(quantityRow);
+    fQuantityCombo->AddEntry("ADC", 0);
+    fQuantityCombo->AddEntry("TDC", 1);
+    fQuantityCombo->Select(0);
+    fQuantityCombo->Resize(160, 24);
+    quantityRow->AddFrame(fQuantityCombo, new TGLayoutHints(kLHintsExpandX, 2, 2, 4, 4));
+    controls->AddFrame(quantityRow, new TGLayoutHints(kLHintsExpandX));
 
     auto* adcRow = new TGHorizontalFrame(controls);
     adcRow->AddFrame(
-        new TGLabel(adcRow, "ADC Channel:"),
+        new TGLabel(adcRow, "Channel:"),
         new TGLayoutHints(kLHintsCenterY, 2, 8, 4, 4));
     fAdcCombo = new TGComboBox(adcRow);
     for (int adc = 0; adc < SuFDeMon::kNAdcChannels; ++adc)
-        fAdcCombo->AddEntry(("ADC" + std::to_string(adc)).c_str(), adc);
+        fAdcCombo->AddEntry(("CH" + std::to_string(adc)).c_str(), adc);
     fAdcCombo->Select(0);
     fAdcCombo->Resize(160, 24);
     adcRow->AddFrame(
@@ -139,99 +268,15 @@ TSuFDeMonGui::TSuFDeMonGui(const TGWindow* parent, UInt_t width, UInt_t height,
         drawRow,
         new TGLayoutHints(kLHintsExpandX, 0, 0, 2, 4));
 
-    generalTab->AddFrame(
+    tab->AddFrame(
         controls,
         new TGLayoutHints(kLHintsExpandX, 8, 8, 4, 4));
 
-    // Process controls stay on the General tab.
-    auto* processControls =
-        new TGGroupFrame(generalTab, "Process Control", kVerticalFrame);
-    auto* processRow = new TGHorizontalFrame(processControls);
-    fCloseClientButton = new TGTextButton(processRow, "Close client");
-    fCloseServerButton = new TGTextButton(processRow, "Close server");
-    fCloseAllButton = new TGTextButton(processRow, "Close All");
-    processRow->AddFrame(
-        fCloseClientButton,
-        new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 4, 0, 0));
-    processRow->AddFrame(
-        fCloseServerButton,
-        new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 4, 0, 0));
-    processRow->AddFrame(
-        fCloseAllButton,
-        new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 4, 4, 0, 0));
-    processControls->AddFrame(
-        processRow,
-        new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 0, 0, 12, 12));
-    generalTab->AddFrame(
-        processControls,
-        new TGLayoutHints(kLHintsExpandX, 8, 8, 4, 8));
-
-    // Server Connections tab: manual endpoint plus configured server overview.
-    auto* connection =
-        new TGGroupFrame(serverConnectionsTab, "Active Client Connection", kVerticalFrame);
-    auto* connectionRow = new TGHorizontalFrame(connection);
-
-    fHostEntry = new TGTextEntry(connectionRow, host.c_str());
-    fHostEntry->Resize(180, 28);
-    fPortEntry = new TGNumberEntry(
-        connectionRow, port, 6, -1,
-        TGNumberFormat::kNESInteger,
-        TGNumberFormat::kNEANonNegative,
-        TGNumberFormat::kNELLimitMinMax,
-        1, 65535);
-    fConnectButton = new TGTextButton(connectionRow, "&Connect");
-    fDisconnectButton = new TGTextButton(connectionRow, "&Disconnect");
-    fStatusLabel = new TGLabel(connectionRow, "Disconnected");
-
-    connectionRow->AddFrame(
-        new TGLabel(connectionRow, "Host:"),
-        new TGLayoutHints(kLHintsCenterY, 5, 4, 0, 0));
-    connectionRow->AddFrame(
-        fHostEntry,
-        new TGLayoutHints(kLHintsCenterY, 0, 5, 0, 0));
-    connectionRow->AddFrame(
-        new TGLabel(connectionRow, "Port:"),
-        new TGLayoutHints(kLHintsCenterY, 0, 4, 0, 0));
-    connectionRow->AddFrame(
-        fPortEntry,
-        new TGLayoutHints(kLHintsCenterY, 0, 15, 0, 0));
-    connectionRow->AddFrame(
-        fConnectButton,
-        new TGLayoutHints(kLHintsCenterY, 0, 8, 0, 0));
-    connectionRow->AddFrame(
-        fDisconnectButton,
-        new TGLayoutHints(kLHintsCenterY, 0, 20, 0, 0));
-    connectionRow->AddFrame(
-        fStatusLabel,
-        new TGLayoutHints(kLHintsCenterY, 0, 5, 0, 0));
-
-    connection->AddFrame(
-        connectionRow,
-        new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 0, 0, 12, 12));
-    serverConnectionsTab->AddFrame(
-        connection,
-        new TGLayoutHints(kLHintsExpandX, 8, 8, 8, 4));
-
-    BuildServerConnectionsTab(serverConnectionsTab);
-
-    AddFrame(
-        fTabs,
-        new TGLayoutHints(kLHintsExpandX | kLHintsExpandY, 6, 6, 6, 6));
-
-    // Timers.
-    fUpdateTimer = new TTimer(1000, kTRUE);
-    fConnectionTimer = new TTimer(1000, kTRUE);
-    fConnectionTimer->Connect(
-        "Timeout()", "TSuFDeMonGui", this, "CheckConnection()");
-
-    // Signals and slots.
-    fGeneralStatusButton->Connect(
-        "Clicked()", "TSuFDeMonGui", this, "DisplayGeneralStatus()");
-    fConnectButton->Connect(
-        "Clicked()", "TSuFDeMonGui", this, "ConnectServer()");
-    fDisconnectButton->Connect(
-        "Clicked()", "TSuFDeMonGui", this, "DisconnectServer()");
-    fFieldCageCombo->Connect(
+    fServerCombo->Connect(
+        "Selected(Int_t)", "TSuFDeMonGui", this, "SelectServer(Int_t)");
+    if (fFieldCageCombo) fFieldCageCombo->Connect(
+        "Selected(Int_t)", "TSuFDeMonGui", this, "SelectionChanged(Int_t)");
+    fQuantityCombo->Connect(
         "Selected(Int_t)", "TSuFDeMonGui", this, "SelectionChanged(Int_t)");
     fAdcCombo->Connect(
         "Selected(Int_t)", "TSuFDeMonGui", this, "SelectionChanged(Int_t)");
@@ -241,12 +286,6 @@ TSuFDeMonGui::TSuFDeMonGui(const TGWindow* parent, UInt_t width, UInt_t height,
         "Clicked()", "TSuFDeMonGui", this, "ClearSelected()");
     fClearAllButton->Connect(
         "Clicked()", "TSuFDeMonGui", this, "ClearAllHistograms()");
-    fCloseClientButton->Connect(
-        "Clicked()", "TSuFDeMonGui", this, "CloseClient()");
-    fCloseServerButton->Connect(
-        "Clicked()", "TSuFDeMonGui", this, "CloseServer()");
-    fCloseAllButton->Connect(
-        "Clicked()", "TSuFDeMonGui", this, "CloseAll()");
     fAutoUpdateCheck->Connect(
         "Toggled(Bool_t)", "TSuFDeMonGui", this, "AutoUpdateToggled()");
 
@@ -258,40 +297,22 @@ TSuFDeMonGui::TSuFDeMonGui(const TGWindow* parent, UInt_t width, UInt_t height,
     fUpdateIntervalEntry->Connect(
         "ValueSet(Long_t)", "TSuFDeMonGui", this,
         "UpdateIntervalChanged()");
-    fUpdateTimer->Connect(
-        "Timeout()", "TSuFDeMonGui", this, "AutoUpdate()");
-
-    UpdateHistogramName();
-    SetConnectedUi(false);
-
-    MapSubwindows();
-    const TGDimension defaultSize = GetDefaultSize();
-    const UInt_t windowWidth = std::max<UInt_t>(960, defaultSize.fWidth);
-    const UInt_t windowHeight = std::max<UInt_t>(700, defaultSize.fHeight);
-    Resize(windowWidth, windowHeight);
-    MapWindow();
-
-    // Keep General as the startup tab.
-    fTabs->SetTab(0, kFALSE);
-
-    // Try the endpoint supplied on the command line immediately.
-    ConnectServer();
-
-    if (fClient && fClient->IsConnected())
-        DrawSelected();
+    fDetectorControls[group] = {fServerCombo, fFieldCageCombo, fAdcCombo,
+        fQuantityCombo, fHistogramEntry, fDrawButton, fClearButton, fClearAllButton,
+        fAutoUpdateCheck, fUpdateIntervalEntry};
 }
 
-TSuFDeMonGui::~TSuFDeMonGui()
+void TSuFDeMonGui::ActivateDetectorControls(int group)
 {
-    if (fConnectionTimer) {
-        fConnectionTimer->TurnOff();
-        delete fConnectionTimer;
-        fConnectionTimer = nullptr;
-    }
-    if (fUpdateTimer) {
-        fUpdateTimer->TurnOff();
-        delete fUpdateTimer;
-        fUpdateTimer = nullptr;
-    }
-    if (fClient) fClient->Disconnect();
+    const auto& controls = fDetectorControls[group];
+    fServerCombo = controls.server;
+    fFieldCageCombo = controls.fieldCage;
+    fAdcCombo = controls.channel;
+    fQuantityCombo = controls.quantity;
+    fHistogramEntry = controls.histogram;
+    fDrawButton = controls.draw;
+    fClearButton = controls.clear;
+    fClearAllButton = controls.clearAll;
+    fAutoUpdateCheck = controls.autoUpdate;
+    fUpdateIntervalEntry = controls.interval;
 }

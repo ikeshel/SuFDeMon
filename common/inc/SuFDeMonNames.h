@@ -34,6 +34,21 @@ inline std::string InstanceHistogramName(const std::string& instance,
     return instance + "_" + histogramName;
 }
 
+// ADC and TDC currently share 32 raw-count channels and 12-bit binning.
+inline std::string DetectorHistogramName(const std::string& instance,
+                                        const std::string& quantity,
+                                        int channel, int fieldCage = 0)
+{
+    if (quantity != "ADC" && quantity != "TDC")
+        throw std::invalid_argument("Quantity must be ADC or TDC");
+    if (channel < 0 || channel >= kNAdcChannels)
+        throw std::out_of_range("Channel must be in the range 0..31");
+    if (fieldCage < 0 || fieldCage > kNFieldCages)
+        throw std::out_of_range("Field cage must be 0 (none) or 1..3");
+    const auto prefix = fieldCage ? "FC" + std::to_string(fieldCage) + "_" : "";
+    return "h" + InstanceHistogramName(instance, prefix + quantity + std::to_string(channel));
+}
+
 inline std::string MusicAdcHistogramName(const std::string& instance,
                                          int fieldCage,
                                          int adcChannel)
@@ -46,9 +61,9 @@ inline std::string MusicAdcHistogramName(const std::string& instance,
         throw std::out_of_range("MUSIC ADC channel must be in the range 0..31");
     }
 
-    return InstanceHistogramName(
+    return "h" + InstanceHistogramName(
         instance,
-        "TH1D_MUSIC_ADC_FC" + std::to_string(fieldCage)
+        "FC" + std::to_string(fieldCage)
             + "_ADC" + std::to_string(adcChannel));
 }
 

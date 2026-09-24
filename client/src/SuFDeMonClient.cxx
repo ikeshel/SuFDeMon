@@ -31,7 +31,7 @@ bool SuFDeMonPing()
     return gClient && gClient->Ping();
 }
 
-void SuFDeMonList()
+void ListOfHistograms()
 {
     if (gClient) std::cout << gClient->ListHistograms();
 }
@@ -86,7 +86,7 @@ int main(int argc, char** argv)
     gInterpreter->Declare(R"(
         class TH1D;
         bool SuFDeMonPing();
-        void SuFDeMonList();
+        void ListOfHistograms();
         TH1D* SuFDeMonGet(const char*);
         TH1D* SuFDeMonDraw(const char*);
         bool SuFDeMonClear(const char*);
@@ -95,14 +95,14 @@ int main(int argc, char** argv)
 
     std::cout << "\nSuFDeMon connected to " << host << ':' << port << "\n"
               << "ROOT prompt is active. Normal ROOT/C++ commands work here.\n"
-              << "Histogram names now start with the server instance name.\n"
-              << "Use SuFDeMonList() to see the exact names for this server.\n"
+              << "Histogram names use h followed by the server instance name.\n"
+              << "Use ListOfHistograms() to see the exact names for this server.\n"
               << "SuFDeMon helpers:\n"
               << "  SuFDeMonPing()\n"
-              << "  SuFDeMonList()\n"
-              << "  TH1D* h = SuFDeMonGet(\"MUSIC1_TH1D_MUSIC_ADC_FC1_ADC0\")\n"
-              << "  SuFDeMonDraw(\"MUSIC1_TH1D_MUSIC_ADC_FC1_ADC0\")\n"
-              << "  SuFDeMonClear(\"MUSIC1_TH1D_MUSIC_ADC_FC1_ADC0\")\n"
+              << "  ListOfHistograms()\n"
+              << "  TH1D* h = SuFDeMonGet(\"hMUSIC1_FC1_ADC0\")\n"
+              << "  SuFDeMonDraw(\"hMUSIC1_FC1_ADC0\")\n"
+              << "  SuFDeMonClear(\"hMUSIC1_FC1_ADC0\")\n"
               << "  SuFDeMonClearAll()\n\n";
 
     application.Run();

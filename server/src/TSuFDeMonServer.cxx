@@ -64,20 +64,16 @@ TSuFDeMonServer::~TSuFDeMonServer()
 
 void TSuFDeMonServer::CreateHistograms()
 {
-    // PLSCI and SCIFI histogram definitions will be added with detector requirements.
-    if (fConfig.type != SuFDeMon::DetectorType::MUSIC) return;
-    for (int fc = 1; fc <= SuFDeMon::kNFieldCages; ++fc) {
-        for (int adc = 0; adc < SuFDeMon::kNAdcChannels; ++adc) {
-            const std::string name =
-                SuFDeMon::MusicAdcHistogramName(fConfig.instance, fc, adc);
-            const std::string title = fConfig.instance + " MUSIC ADC FC"
-                                    + std::to_string(fc)
-                                    + " ADC" + std::to_string(adc)
-                                    + ";ADC value;Counts";
-
-            auto histogram = std::make_unique<TH1D>(name.c_str(), title.c_str(), 4096, 0.0, 4096.0);
-            histogram->SetDirectory(nullptr);
-            fHistograms.push_back(std::move(histogram));
+    const bool music = fConfig.type == SuFDeMon::DetectorType::MUSIC;
+    for (const std::string quantity : {"ADC", "TDC"}) {
+        for (int fc = music ? 1 : 0; fc <= (music ? SuFDeMon::kNFieldCages : 0); ++fc) {
+            for (int channel = 0; channel < SuFDeMon::kNAdcChannels; ++channel) {
+                const auto name = SuFDeMon::DetectorHistogramName(fConfig.instance, quantity, channel, fc);
+                const auto title = name + ";" + quantity + " [raw counts];Counts";
+                auto histogram = std::make_unique<TH1D>(name.c_str(), title.c_str(), 4096, 0.0, 4096.0);
+                histogram->SetDirectory(nullptr);
+                fHistograms.push_back(std::move(histogram));
+            }
         }
     }
 }
@@ -86,7 +82,8 @@ void TSuFDeMonServer::FillHistograms()
 {
     std::lock_guard<std::mutex> lock(fHistogramMutex);
     for (std::size_t i = 0; i < fHistograms.size(); ++i) {
-        const auto fc = i / SuFDeMon::kNAdcChannels;
+        const auto fc = fConfig.type == SuFDeMon::DetectorType::MUSIC
+            ? (i / SuFDeMon::kNAdcChannels) % SuFDeMon::kNFieldCages : 0;
         const auto adc = i % SuFDeMon::kNAdcChannels;
         const double mean = 1500.0 + 250.0 * fc + 5.0 * adc;
         const double sigma = 120.0 + 10.0 * fc;

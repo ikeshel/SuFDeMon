@@ -12,15 +12,26 @@
 
 #include "TSuFDeMonGui.h"
 #include "SuFDeMonProtocol.h"
+#include "TSuFDeMonClient.h"
 
 #include <TGClient.h>
 #include <TRint.h>
+#include <TInterpreter.h>
 
 #include <exception>
 #include <iostream>
 #include <string>
 
 TSuFDeMonGui* gSuFDeMonGui = nullptr;
+
+void ListOfHistograms()
+{
+    if (!gSuFDeMonGui) {
+        std::cout << "No connected servers.\n";
+        return;
+    }
+    gSuFDeMonGui->ListOfHistograms();
+}
 
 int main(int argc, char** argv)
 {
@@ -52,9 +63,12 @@ int main(int argc, char** argv)
 
     gSuFDeMonGui = new TSuFDeMonGui(gClient->GetRoot(), 430, 360, host, port);
 
+    gInterpreter->Declare("#include \"TSuFDeMonGui.h\"\nextern TSuFDeMonGui* gSuFDeMonGui;\nvoid ListOfHistograms();");
+
     std::cout << "\nSuFDeMon GUI started. ROOT command line is active.\n"
               << "The control window and TCanvas are separate windows.\n"
-              << "Global GUI pointer: gSuFDeMonGui\n\n";
+              << "Global GUI pointer: gSuFDeMonGui\n"
+              << "Use ListOfHistograms() to list histograms from all connected servers.\n\n";
 
     application.Run();
 

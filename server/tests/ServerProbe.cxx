@@ -56,15 +56,42 @@ int main(int argc, char** argv)
             + "\nhostname=localhost\nport=" + std::to_string(port) + "\n", "Incorrect identity");
         const auto list = Request(*socket, "LIST");
         if (type == "MUSIC") {
-            Require(std::count(list.begin(), list.end(), '\n') == 96, "MUSIC histogram count changed");
-            Require(list.find(instance + "_TH1D_MUSIC_ADC_FC3_ADC31\n") != std::string::npos,
+            Require(std::count(list.begin(), list.end(), '\n') == 192, "MUSIC histogram count changed");
+            Require(list.find("h" + instance + "_FC3_ADC31\n") != std::string::npos,
                     "Missing MUSIC channel");
-            const std::string name = instance + "_TH1D_MUSIC_ADC_FC1_ADC0";
+            const std::string requested = "h" + instance + "_FC2_ADC26";
+            Require(list.find(requested + "\n") != std::string::npos, "Missing ROOT-style name");
+            Require(std::string(Get(*socket, requested)->GetName()) == requested,
+                    "Serialized histogram name differs from LIST");
+            Require(Request(*socket, "CLEAR " + requested) == "OK", "ROOT-style CLEAR failed");
+            const std::string name = "h" + instance + "_FC1_ADC0";
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             Require(Get(*socket, name)->GetEntries() > 0, "MUSIC not filling");
             Require(Request(*socket, "CLEAR " + name) == "OK", "CLEAR failed");
             Require(Get(*socket, name)->GetNbinsX() == 4096, "Histogram binning changed");
-        } else Require(list.empty(), "Skeleton exposes invented histograms");
+        } else {
+            Require(std::count(list.begin(), list.end(), '\n') == 64, "ADC/TDC count changed");
+        }
+        for (const std::string quantity : {"ADC", "TDC"}) {
+            const int cages = type == "MUSIC" ? 3 : 0;
+            for (int fc = cages ? 1 : 0; fc <= cages; ++fc) {
+                for (int channel = 0; channel < 32; ++channel) {
+                    const auto name = "h" + instance + "_" +
+                        (fc ? "FC" + std::to_string(fc) + "_" : "") + quantity + std::to_string(channel);
+                    Require(list.find(name + "\n") != std::string::npos, "Missing ADC/TDC channel");
+                    auto histogram = Get(*socket, name);
+                    Require(std::string(histogram->GetName()) == name, "Wrong object name");
+                    Require(histogram->GetNbinsX() == 4096 && histogram->GetXaxis()->GetXmin() == 0.0
+                        && histogram->GetXaxis()->GetXmax() == 4096.0, "Wrong raw-count binning");
+                    for (int retry = 0; histogram->GetEntries() == 0 && retry < 20; ++retry) {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                        histogram = Get(*socket, name);
+                    }
+                    Require(histogram->GetEntries() > 0, "Channel not filling");
+                    Require(Request(*socket, "CLEAR " + name) == "OK", "Channel CLEAR failed");
+                }
+            }
+        }
         Require(Request(*socket, "GET missing") == "ERROR histogram not found", "Missing GET failed");
         Require(Request(*socket, "CLEAR missing") == "ERROR histogram not found", "Missing CLEAR failed");
         Require(Request(*socket, "CLEAR ALL") == "OK", "CLEAR ALL failed");

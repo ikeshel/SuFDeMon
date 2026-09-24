@@ -26,7 +26,7 @@ int main(int argc, char** argv)
     } else if (mode == "list") {
         if (!client.ListHistograms().empty()) return 5;
     } else if (mode == "get") {
-        if (client.GetHistogram("TH1D_MUSIC_ADC_FC1_ADC0")) return 6;
+        if (client.GetHistogram("hMUSIC1_FC1_ADC0")) return 6;
     } else if (mode == "clear") {
         if (client.ClearAll()) return 7;
     } else return 8;

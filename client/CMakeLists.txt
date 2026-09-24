@@ -67,4 +67,8 @@ if(BUILD_TESTING)
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/check_disconnect.py
             $<TARGET_FILE:SuFDeMonMUSICServer> $<TARGET_FILE:SuFDeMonDisconnectProbe>)
     set_tests_properties(client_disconnect PROPERTIES TIMEOUT 40)
+    add_test(NAME gui_connections
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/check_gui_connections.py
+            ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR})
+    set_tests_properties(gui_connections PROPERTIES TIMEOUT 90 SKIP_RETURN_CODE 77 LABELS "gui")
 endif()

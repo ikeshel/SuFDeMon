@@ -15,6 +15,7 @@
 
 #include <TGFrame.h>
 
+#include <array>
 #include <memory>
 #include <string>
 #include <vector>
@@ -42,6 +43,12 @@ public:
     void ConnectServer();
     void DisconnectServer();
     void SelectionChanged(Int_t id);
+    void SelectServer(Int_t index);
+    void DetectorTabSelected(Int_t tab);
+    void ConnectGroup(Int_t group);
+    void DisconnectGroup(Int_t group);
+    int ConnectedServerCount() const;
+    void ListOfHistograms();
     void DrawSelected();
     void ClearSelected();
     void ClearAllHistograms();
@@ -68,21 +75,36 @@ private:
     void SetConnectedUi(bool connected);
     void UpdateTimerState();
     void FetchAndDraw();
+    void BuildDetectorTab(TGCompositeFrame* tab, int group);
+    void ActivateDetectorControls(int group);
     void BuildServerConnectionsTab(TGCompositeFrame* tab);
     void ConnectConfiguredServer(std::size_t index);
+    void SetServerConnected(std::size_t index, bool connected);
     void UpdateConfiguredServerButton(std::size_t index);
     void UpdateServerConnectionsSummary();
     void SyncConfiguredServerStates();
 
+    struct DetectorControls {
+        TGComboBox* server = nullptr;
+        TGComboBox* fieldCage = nullptr;
+        TGComboBox* channel = nullptr;
+        TGComboBox* quantity = nullptr;
+        TGTextEntry* histogram = nullptr;
+        TGTextButton* draw = nullptr;
+        TGTextButton* clear = nullptr;
+        TGTextButton* clearAll = nullptr;
+        TGCheckButton* autoUpdate = nullptr;
+        TGNumberEntry* interval = nullptr;
+    };
+    std::array<DetectorControls, 3> fDetectorControls; //!
     TGTab* fTabs = nullptr;
 
-    TGTextEntry* fHostEntry = nullptr;
-    TGNumberEntry* fPortEntry = nullptr;
+    TGComboBox* fServerCombo = nullptr;
+    int fSelectedServer = -1;
     TGComboBox* fFieldCageCombo = nullptr;
     TGComboBox* fAdcCombo = nullptr;
+    TGComboBox* fQuantityCombo = nullptr;
     TGTextEntry* fHistogramEntry = nullptr;
-    TGTextButton* fConnectButton = nullptr;
-    TGTextButton* fDisconnectButton = nullptr;
     TGTextButton* fDrawButton = nullptr;
     TGTextButton* fClearButton = nullptr;
     TGTextButton* fClearAllButton = nullptr;
@@ -93,7 +115,6 @@ private:
     TGTextButton* fRefreshServerConnectionsButton = nullptr;
     TGCheckButton* fAutoUpdateCheck = nullptr;
     TGNumberEntry* fUpdateIntervalEntry = nullptr;
-    TGLabel* fStatusLabel = nullptr;
     TGLabel* fGeneralStatusLabel = nullptr;
     TGLabel* fServerConnectionsSummaryLabel = nullptr;
 
@@ -106,12 +127,14 @@ private:
 
     std::string fConnectedDetectorType = "MUSIC";
     std::string fConnectedInstance = "MUSIC1";
-    std::unique_ptr<TSuFDeMonClient> fClient;
+    std::vector<std::shared_ptr<TSuFDeMonClient>> fServerClients; //!
+    std::shared_ptr<TSuFDeMonClient> fClient; //!
     std::unique_ptr<TH1D> fHistogram;
     TCanvas* fCanvas = nullptr;
     TTimer* fUpdateTimer = nullptr;
     TTimer* fConnectionTimer = nullptr;
     bool fHasDrawnHistogram = false;
+    std::string fLegacyHistogramPrefix;
 
     ClassDefOverride(TSuFDeMonGui, 0);
 };

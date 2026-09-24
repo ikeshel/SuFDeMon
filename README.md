@@ -14,8 +14,8 @@ The project provides a ROOT network server that owns detector histograms and rem
 - Serialization and transfer of ROOT histograms over the network
 - MUSIC prototype with:
   - 3 field cages (FC1-FC3)
-  - 32 ADC channels per field cage
-  - 96 `TH1D` histograms
+  - 32 ADC and 32 TDC channels per field cage
+  - 192 `TH1D` histograms
 - Interactive ROOT (`TRint`) client
 - ROOT GUI control application
 - Separate standard ROOT `TCanvas` for histogram display
@@ -114,13 +114,12 @@ Three dedicated executables share the server transport and protocol:
 
 | Type | Executable | Example instances | Histogram status |
 | --- | --- | --- | --- |
-| MUSIC | `SuFDeMonMUSICServer` | MUSIC1, MUSIC2 | Existing 3 × 32 simulated ADC histograms |
-| PLSCI | `SuFDeMonPLSCIServer` | PLSCI1, PLSCI2, PLSCI3 | Runnable skeleton; detector definitions pending |
-| SCIFI | `SuFDeMonSCIFIServer` | SCIFI1–SCIFI14 | Runnable skeleton; detector definitions pending |
+| MUSIC | `SuFDeMonMUSICServer` | MUSIC1, MUSIC2 | 3 × 32 ADC + 3 × 32 TDC histograms |
+| PLSCI | `SuFDeMonPLSCIServer` | PLSCI1, PLSCI2, PLSCI3 | 32 ADC + 32 TDC histograms (provisional layout) |
+| SCIFI | `SuFDeMonSCIFIServer` | SCIFI1–SCIFI14 | 32 ADC + 32 TDC histograms (provisional layout) |
 
 Build with `make servers` or the normal CMake build. Each process owns its
-histograms independently. Instance names do not change MUSIC histogram names,
-so existing MUSIC clients continue to work.
+histograms independently. Histogram names include the instance name.
 
 The files under `config/servers/` define `type`, `instance`, `hostname` and `port`.
 All example hostnames are currently `localhost` for local testing. Replace them
@@ -156,11 +155,14 @@ and `--config`. Dedicated executables reject configs for another detector type.
 Use `--help` for syntax. Copy a config and change its instance and hostname to
 add more instances; the counts are not hardcoded.
 
-PLSCI and SCIFI support `INFO`, `PING`, `LIST`, `GET`, `CLEAR`, `CLEAR ALL`,
-`QUIT` and `SHUTDOWN`, but return an empty histogram list until their definitions
-are implemented. No detector channels or physics data have been invented.
-The current GUI remains MUSIC-specific; its host/port fields select a MUSIC
-instance. A detector-specific GUI for PLSCI/SCIFI is future work.
+All detector types support `INFO`, `PING`, `LIST`, `GET`, `CLEAR`, `CLEAR ALL`,
+`QUIT` and `SHUTDOWN`. The GUI supports ADC/TDC selection, drawing, clearing,
+and automatic updates for all types; field cages apply only to MUSIC.
+
+All histograms currently contain simulated data. ADC and TDC use 4096 bins
+from 0 to 4096 in raw counts; TDC values are not calibrated time units.
+PLSCI and SCIFI provisionally use channels 0–31 for each quantity, pending
+hardware-specific channel maps and timing ranges.
 
 ### Running servers in Screen
 
@@ -236,10 +238,10 @@ or specify a port explicitly:
 For the current MUSIC prototype the server creates 96 histograms using names such as:
 
 ```text
-TH1D_MUSIC_ADC_FC1_ADC0
-TH1D_MUSIC_ADC_FC1_ADC1
+hMUSIC1_FC1_ADC0
+hMUSIC1_FC1_ADC1
 ...
-TH1D_MUSIC_ADC_FC3_ADC31
+hMUSIC1_FC3_ADC31
 ```
 
 The prototype server fills these histograms with simulated data.
@@ -252,14 +254,20 @@ With the server running:
 ./build/client/SuFDeMonGui localhost 10001
 ```
 
-The GUI attempts to connect automatically using the host and port supplied on the command line. If the connection is unavailable, the GUI remains open and the connection can be retried manually. An independent one-second connection check detects a closed server even when histogram auto-update is disabled, changes the status to Disconnected, and enables reconnection. Transport send/receive failures also invalidate the connection. This detects socket closure/reset; it is not a heartbeat for silent network outages.
+At startup the GUI attempts to connect to every configured server. Unavailable servers remain disconnected and can be retried with their individual or group controls. The command-line host and port choose the preferred histogram server when connected; otherwise the first available server is selected. Connected server labels use dark green for readability. An independent one-second connection check detects a closed server even when histogram auto-update is disabled, changes the status to Disconnected, and enables reconnection. Transport send/receive failures also invalidate the connection. This detects socket closure/reset; it is not a heartbeat for silent network outages.
 
 The control window provides:
 
-- server host and port
-- Connect / Disconnect
+- independent connections to all configured servers simultaneously
+- MUSIC, PLSCI, and SCIFI columns with **Connect all** / **Disconnect all**
+- individual server buttons to toggle each connection
+- connection summary, global **Connect all** / **Disconnect all**, and Refresh Status
+  at the top of the Server Connections tab
+- separate **MUSIC**, **PLSCI**, and **SCIFI** drawing tabs, each with its own
+  detector-filtered server selector, ADC/TDC selection, channel, and refresh settings
+- selections retained when switching detector tabs; connections stay open
 - MUSIC field-cage selection
-- ADC-channel selection
+- ADC/TDC quantity and channel selection
 - Draw
 - Clear
 - Clear All
@@ -268,9 +276,23 @@ The control window provides:
 
 **Auto update is enabled by default with a 1.0 second interval.** After a histogram has been drawn, a ROOT `TTimer` periodically requests a fresh snapshot from the server and redraws the existing canvas.
 
+General retains status and process controls; Server Connections retains the shared
+connection groups. MUSIC alone has a field-cage selector. Switching detector tabs
+pauses automatic drawing until Draw is clicked for that selection.
+
 The histogram canvas is intentionally a normal, separate ROOT `TCanvas`, rather than being embedded in the control window.
 
-The GUI application also runs `TRint`, so the normal interactive ROOT prompt remains available while the GUI is running.
+The GUI application also runs `TRint`, so the normal interactive ROOT prompt remains available while the GUI is running. Use `ListOfHistograms()` there to list histogram names from all connected servers, in detector and instance order. The histogram-server selection does not restrict this list.
+
+Group disconnects close client sockets only; server processes keep running.
+Closing the client releases all its connections. **Close server** shuts down the
+selected histogram server; **Close All** shuts down all connected servers and
+closes the client.
+
+The `gui_connections` CTest integration test uses temporary server configurations
+and isolated ports to exercise all 19 connections. It needs an X display and is
+skipped when `DISPLAY` is unset; use `xvfb-run ctest --test-dir build -R gui_connections`
+for a virtual display.
 
 ## Interactive ROOT client
 
@@ -284,12 +306,12 @@ It provides a normal ROOT prompt with SuFDeMon helper functions. For example:
 
 ```cpp
 root [0] SuFDeMonPing()
-root [1] SuFDeMonList()
-root [2] TH1D* h = SuFDeMonGet("TH1D_MUSIC_ADC_FC1_ADC0")
+root [1] ListOfHistograms()
+root [2] TH1D* h = SuFDeMonGet("hMUSIC1_FC1_ADC0")
 root [3] h->Draw()
 root [4] h->GetEntries()
 root [5] h->GetMean()
-root [6] SuFDeMonClear("TH1D_MUSIC_ADC_FC1_ADC0")
+root [6] SuFDeMonClear("hMUSIC1_FC1_ADC0")
 root [7] SuFDeMonClearAll()
 ```
 
@@ -312,24 +334,32 @@ SHUTDOWN
 
 Histogram objects are transferred using ROOT serialization.
 
-## Current MUSIC naming convention
+## Histogram naming convention
 
-MUSIC ADC histogram names follow:
+MUSIC ADC/TDC histogram names follow:
 
 ```text
-TH1D_MUSIC_ADC_FC<field-cage>_ADC<channel>
+h<instance>_FC<field-cage>_<ADC|TDC><channel>
 ```
 
 where:
 
+- `instance` is the server name, such as `MUSIC1` or `MUSIC2`
 - `field-cage` is 1-3
 - `channel` is 0-31
 
 Example:
 
 ```text
-TH1D_MUSIC_ADC_FC2_ADC15
+hMUSIC1_FC2_ADC15
+hMUSIC2_FC2_TDC26
+hSCIFI1_ADC0
+hSCIFI1_TDC0
+hPLSCI1_ADC0
+hPLSCI1_TDC0
 ```
+
+PLSCI and SCIFI names omit the field-cage component.
 
 Shared detector constants and naming helpers are kept under `common/` so that the server and clients use exactly the same definitions.
 
@@ -342,3 +372,5 @@ The current MUSIC implementation is intentionally small and provides the foundat
 ## License
 
 SuFDeMon is released under the **GNU General Public License v3.0 (GPL-3.0)**. See `LICENSE` for details.
+
+After rebuilding, restart server processes to publish the new histogram names. The GUI also recognizes names from older running servers.
