@@ -1,6 +1,7 @@
 #include <TSocket.h>
 #include <TMessage.h>
-#include <TH1D.h>
+#include <TH1.h>
+#include <TH2D.h>
 
 #include <chrono>
 #include <iostream>
@@ -22,7 +23,7 @@ std::string Request(TSocket& socket, const std::string& command)
     Require(socket.Recv(reply, sizeof(reply)) > 0, "receive failed");
     return reply;
 }
-std::unique_ptr<TH1D> Get(TSocket& socket, const std::string& name)
+std::unique_ptr<TH1> Get(TSocket& socket, const std::string& name)
 {
     Require(socket.Send(("GET " + name).c_str()) > 0, "GET send failed");
     TMessage* raw = nullptr;
@@ -30,10 +31,10 @@ std::unique_ptr<TH1D> Get(TSocket& socket, const std::string& name)
     std::unique_ptr<TMessage> message(raw);
     Require(message && message->What() == kMESS_OBJECT, "Expected histogram object");
     auto* object = message->ReadObject(message->GetClass());
-    auto* histogram = dynamic_cast<TH1D*>(object);
-    if (!histogram) { delete object; throw std::runtime_error("Expected TH1D"); }
+    auto* histogram = dynamic_cast<TH1*>(object);
+    if (!histogram) { delete object; throw std::runtime_error("Expected TH1"); }
     histogram->SetDirectory(nullptr);
-    return std::unique_ptr<TH1D>(histogram);
+    return std::unique_ptr<TH1>(histogram);
 }
 }
 
@@ -70,10 +71,37 @@ int main(int argc, char** argv)
             Require(Get(*socket, name)->GetEntries() > 0, "MUSIC not filling");
             Require(Request(*socket, "CLEAR " + name) == "OK", "CLEAR failed");
             Require(Get(*socket, name)->GetNbinsX() == 4096, "Histogram binning changed");
+        } else if (type == "SCIFI") {
+            Require(list == "h" + instance + "_ToT\nh" + instance + "_TDC\n", "SCIFI must publish exactly two maps");
+            for (const std::string quantity : {"ToT", "TDC"}) {
+                const auto name = "h" + instance + "_" + quantity;
+                auto histogram = Get(*socket, name);
+                Require(dynamic_cast<TH2D*>(histogram.get()) != nullptr, "Expected SCIFI TH2D");
+                Require(histogram->GetNbinsX() == 2048 && histogram->GetNbinsY() == 256,
+                    "Wrong SCIFI map dimensions");
+                Require(histogram->GetXaxis()->GetXmin() == -0.5 && histogram->GetXaxis()->GetXmax() == 2047.5,
+                    "Wrong SCIFI channel range");
+                Require(histogram->GetYaxis()->GetXmin() == 0 && histogram->GetYaxis()->GetXmax() == 4096,
+                    "Wrong SCIFI timing range");
+                for (int retry = 0; histogram->GetEntries() == 0 && retry < 20; ++retry) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                    histogram = Get(*socket, name);
+                }
+                for (int channel : {1, 2048}) {
+                    double entries = 0;
+                    for (int bin = 1; bin <= histogram->GetNbinsY(); ++bin)
+                        entries += histogram->GetBinContent(channel, bin);
+                    Require(entries > 0, "SCIFI boundary channel not filling");
+                }
+                Require(Request(*socket, "CLEAR " + name) == "OK", "SCIFI CLEAR failed");
+            }
+            Require(Request(*socket, "GET h" + instance + "_ADC0") == "ERROR histogram not found",
+                "Obsolete SCIFI per-channel histogram exposed");
         } else {
             Require(std::count(list.begin(), list.end(), '\n') == channels * 2, "ADC/TDC count changed");
         }
         for (const std::string quantity : {"ADC", "TDC"}) {
+            if (type == "SCIFI") break;
             if (type == "PLSCI") {
                 const auto invalid = "h" + instance + "_" + quantity + std::to_string(channels);
                 Require(Request(*socket, "GET " + invalid) == "ERROR histogram not found", "Nonexistent PMT exposed");

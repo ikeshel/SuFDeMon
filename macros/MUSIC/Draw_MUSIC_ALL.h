@@ -15,11 +15,11 @@
 
 #include <TCanvas.h>
 #include <TError.h>
-#include <TH1D.h>
+#include <TH1.h>
 #include <TPad.h>
 #include <TString.h>
 
-TH1D* SuFDeMonGet(const char* name);
+TH1* SuFDeMonGet(const char* name);
 
 inline void DrawMUSICAll(const char* instance, const char* quantity)
 {
@@ -33,7 +33,7 @@ inline void DrawMUSICAll(const char* instance, const char* quantity)
     for (Int_t fieldCage = 1; fieldCage <= 3; ++fieldCage) {
         for (Int_t channel = 0; channel < 32; ++channel, ++pad) {
             const TString name = TString::Format("h%s_FC%d_%s%d", instance, fieldCage, quantity, channel);
-            TH1D* histogram = SuFDeMonGet(name.Data());
+            TH1* histogram = SuFDeMonGet(name.Data());
             auto* channelPad = canvas->cd(pad);
             const Color_t background = fieldCage % 2 == 0 ? kGray : kWhite;
             channelPad->SetFillColor(background);

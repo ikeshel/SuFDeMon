@@ -24,7 +24,7 @@
 #include <TGNumberEntry.h>
 #include <TGTextEntry.h>
 #include <TGTab.h>
-#include <TH1D.h>
+#include <TH1.h>
 #include <TTimer.h>
 #include <TROOT.h>
 
@@ -52,6 +52,9 @@ std::string InfoValue(const std::string& info, const std::string& key)
 
 std::string TSuFDeMonGui::SelectedHistogramName() const
 {
+    if (fConnectedDetectorType == "SCIFI")
+        return SuFDeMon::ScifiHistogramName(fConnectedInstance,
+            fQuantityCombo->GetSelected() == 1 ? "TDC" : "ToT");
     const auto name = SuFDeMon::DetectorHistogramName(
         fConnectedInstance, fQuantityCombo->GetSelected() == 1 ? "TDC" : "ADC",
         fAdcCombo->GetSelected(),
@@ -75,6 +78,10 @@ void TSuFDeMonGui::UpdateServerIdentity(const std::string& info)
     if (!instance.empty())
         fConnectedInstance = instance;
 
+    if (!fAdcCombo) {
+        UpdateHistogramName();
+        return;
+    }
     const int selected = fAdcCombo->GetSelected();
     const int channels = fConnectedDetectorType == "PLSCI"
         ? SuFDeMon::PlsciPmtCount(fConnectedInstance.c_str()) : SuFDeMon::kNAdcChannels;
@@ -110,7 +117,7 @@ void TSuFDeMonGui::SelectServer(Int_t index)
     fHasDrawnHistogram = false;
     const int group = fServerTypes[index] == "MUSIC" ? 0 : fServerTypes[index] == "PLSCI" ? 1 : 2;
     ActivateDetectorControls(group);
-    if (fTabs->GetCurrent() >= 2) fTabs->SetTab(group + 2, kFALSE);
+    if (fTabs->GetCurrent() >= 1) fTabs->SetTab(group + 1, kFALSE);
     fSelectedServer = index;
     fServerCombo->Select(index, kFALSE);
     fClient = fServerClients[index];
@@ -151,9 +158,9 @@ void TSuFDeMonGui::SelectServer(Int_t index)
 
 void TSuFDeMonGui::DetectorTabSelected(Int_t tab)
 {
-    if (tab < 2 || tab > 4) return;
+    if (tab < 1 || tab > 3) return;
     if (fUpdateTimer) fUpdateTimer->TurnOff();
-    ActivateDetectorControls(tab - 2);
+    ActivateDetectorControls(tab - 1);
     const int index = fServerCombo->GetSelected();
     if (index >= 0) {
         SelectServer(index);
@@ -246,7 +253,7 @@ void TSuFDeMonGui::ListOfHistograms()
     RefreshServerConnections();
 }
 
-TH1D* TSuFDeMonGui::FetchHistogram(const char* requestedName)
+TH1* TSuFDeMonGui::FetchHistogram(const char* requestedName)
 {
     const std::string name = requestedName ? requestedName : "";
     if (name.empty()) {
@@ -269,7 +276,7 @@ TH1D* TSuFDeMonGui::FetchHistogram(const char* requestedName)
         auto histogram = client->GetHistogram(name);
         if (!histogram)
             return nullptr;
-        TH1D* result = histogram.get();
+        TH1* result = histogram.get();
         fPromptHistograms.push_back(std::move(histogram));
         return result;
     }
@@ -281,7 +288,7 @@ TH1D* TSuFDeMonGui::FetchHistogram(const char* requestedName)
 
 void TSuFDeMonGui::DrawSelectedMacro()
 {
-    const int group = fTabs->GetCurrent() - 2;
+    const int group = fTabs->GetCurrent() - 1;
     if (group < 0 || group >= 3)
         return;
     auto* combo = fMacroCombos[group];
@@ -395,13 +402,17 @@ void TSuFDeMonGui::FetchAndDraw()
 
     fHistogram = std::move(histogram);
 
-    if (!fCanvas)
+    if (!fCanvas) {
         fCanvas = new TCanvas(
             "SuFDeMonCanvas", "SuFDeMon Histogram", 10, 10, 1000, 700);
+        fCanvas->Connect("Closed()", "TSuFDeMonGui", this, "HistogramCanvasClosed()");
+    }
 
     fCanvas->cd();
     fCanvas->Clear();
-    fHistogram->Draw();
+    fCanvas->SetLeftMargin(fHistogram->GetDimension() == 2 ? 0.16 : 0.1);
+    fCanvas->SetRightMargin(fHistogram->GetDimension() == 2 ? 0.15 : 0.1);
+    fHistogram->Draw(fHistogram->GetDimension() == 2 ? "COLZ" : "");
     fCanvas->Modified();
     fCanvas->Update();
     fHasDrawnHistogram = true;
@@ -410,7 +421,19 @@ void TSuFDeMonGui::FetchAndDraw()
 void TSuFDeMonGui::DrawSelected()
 {
     FetchAndDraw();
+    if (fCanvas) fCanvas->RaiseWindow();
     UpdateTimerState();
+}
+
+void TSuFDeMonGui::HistogramCanvasClosed()
+{
+    // ROOT can keep the C++ canvas alive after closing its native window.
+    // Release the pointer so the next Draw/Clear creates a visible canvas.
+    if (fCanvas)
+        fCanvas->Disconnect("Closed()", this, "HistogramCanvasClosed()");
+    fCanvas = nullptr;
+    fHasDrawnHistogram = false;
+    if (fUpdateTimer) fUpdateTimer->TurnOff();
 }
 
 void TSuFDeMonGui::ClearSelected()
@@ -418,8 +441,10 @@ void TSuFDeMonGui::ClearSelected()
     if (!fClient || !fClient->IsConnected())
         return;
 
-    if (fClient->ClearHistogram(SelectedHistogramName()))
+    if (fClient->ClearHistogram(SelectedHistogramName())) {
         FetchAndDraw();
+        if (fCanvas) fCanvas->RaiseWindow();
+    }
     UpdateTimerState();
 }
 
@@ -428,8 +453,10 @@ void TSuFDeMonGui::ClearAllHistograms()
     if (!fClient || !fClient->IsConnected())
         return;
 
-    if (fClient->ClearAll())
+    if (fClient->ClearAll()) {
         FetchAndDraw();
+        if (fCanvas) fCanvas->RaiseWindow();
+    }
     UpdateTimerState();
 }
 

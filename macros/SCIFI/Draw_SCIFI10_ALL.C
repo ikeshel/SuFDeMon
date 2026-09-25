@@ -10,9 +10,9 @@
 //
 // See the LICENSE file in the project root for the full license text.
 
-#include "../Draw_Detector_ALL.h"
+#include "Draw_SCIFI_ALL.h"
 
-void Draw_SCIFI10_ADC_ALL()
+void Draw_SCIFI10_ALL()
 {
-    DrawDetectorAll("SCIFI10", "ADC");
+    DrawSCIFIAll("SCIFI10");
 }

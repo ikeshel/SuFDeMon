@@ -19,6 +19,7 @@
 #include <TServerSocket.h>
 #include <TSocket.h>
 #include <TH1D.h>
+#include <TH2D.h>
 #include <TRandom3.h>
 
 #include <iostream>
@@ -64,6 +65,20 @@ TSuFDeMonServer::~TSuFDeMonServer()
 
 void TSuFDeMonServer::CreateHistograms()
 {
+    if (fConfig.type == SuFDeMon::DetectorType::SCIFI) {
+        for (const std::string quantity : {"ToT", "TDC"}) {
+            const auto name = SuFDeMon::ScifiHistogramName(fConfig.instance, quantity);
+            const auto title = name + ";Readout channel;" + quantity + " [raw counts];Counts";
+            auto histogram = std::make_unique<TH2D>(name.c_str(), title.c_str(),
+                SuFDeMon::kNScifiChannels, -0.5, SuFDeMon::kNScifiChannels - 0.5,
+                SuFDeMon::kScifiTimingBins, 0.0, 4096.0);
+            histogram->SetDirectory(nullptr);
+            histogram->SetOption("COLZ");
+            histogram->SetStats(kFALSE);
+            fHistograms.push_back(std::move(histogram));
+        }
+        return;
+    }
     const bool music = fConfig.type == SuFDeMon::DetectorType::MUSIC;
     const int channels = fConfig.type == SuFDeMon::DetectorType::PLSCI
         ? SuFDeMon::PlsciPmtCount(fConfig.instance.c_str()) : SuFDeMon::kNAdcChannels;
@@ -83,6 +98,15 @@ void TSuFDeMonServer::CreateHistograms()
 void TSuFDeMonServer::FillHistograms()
 {
     std::lock_guard<std::mutex> lock(fHistogramMutex);
+    if (fConfig.type == SuFDeMon::DetectorType::SCIFI) {
+        auto* tot = static_cast<TH2D*>(fHistograms[0].get());
+        auto* tdc = static_cast<TH2D*>(fHistograms[1].get());
+        for (int channel = 0; channel < SuFDeMon::kNScifiChannels; ++channel) {
+            tot->Fill(channel, fRandom->Gaus(800.0 + 0.2 * channel, 80.0));
+            tdc->Fill(channel, fRandom->Gaus(1800.0 + 0.3 * channel, 120.0));
+        }
+        return;
+    }
     const int channels = fConfig.type == SuFDeMon::DetectorType::PLSCI
         ? SuFDeMon::PlsciPmtCount(fConfig.instance.c_str()) : SuFDeMon::kNAdcChannels;
     for (std::size_t i = 0; i < fHistograms.size(); ++i) {
@@ -105,7 +129,7 @@ void TSuFDeMonServer::FillLoop()
     }
 }
 
-TH1D* TSuFDeMonServer::FindHistogram(const std::string& name)
+TH1* TSuFDeMonServer::FindHistogram(const std::string& name)
 {
     for (auto& histogram : fHistograms) {
         if (name == histogram->GetName()) return histogram.get();
@@ -157,7 +181,7 @@ bool TSuFDeMonServer::HandleCommand(TSocket& socket, const std::string& command)
     const std::string getPrefix = std::string(SuFDeMon::Protocol::kGet) + " ";
     if (StartsWith(command, getPrefix)) {
         const std::string name = command.substr(getPrefix.size());
-        TH1D* histogram = FindHistogram(name);
+        TH1* histogram = FindHistogram(name);
 
         if (!histogram) {
             SendText(socket, "ERROR histogram not found");
@@ -176,7 +200,7 @@ bool TSuFDeMonServer::HandleCommand(TSocket& socket, const std::string& command)
     const std::string clearPrefix = std::string(SuFDeMon::Protocol::kClear) + " ";
     if (StartsWith(command, clearPrefix)) {
         const std::string name = command.substr(clearPrefix.size());
-        TH1D* histogram = FindHistogram(name);
+        TH1* histogram = FindHistogram(name);
 
         if (!histogram) {
             SendText(socket, "ERROR histogram not found");

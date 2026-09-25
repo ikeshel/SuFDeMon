@@ -16,7 +16,7 @@
 #include <memory>
 #include <string>
 
-class TH1D;
+class TH1;
 class TSocket;
 
 class TSuFDeMonClient
@@ -35,7 +35,7 @@ public:
     std::string Info();
     bool Ping();
     std::string ListHistograms();
-    std::unique_ptr<TH1D> GetHistogram(const std::string& name);
+    std::unique_ptr<TH1> GetHistogram(const std::string& name);
     bool ClearHistogram(const std::string& name);
     bool ClearAll();
     bool ShutdownServer();

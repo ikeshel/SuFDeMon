@@ -13,7 +13,7 @@
 #include "TSuFDeMonClient.h"
 #include "SuFDeMonProtocol.h"
 
-#include <TH1D.h>
+#include <TH1.h>
 #include <TInterpreter.h>
 #include <TRint.h>
 
@@ -23,7 +23,7 @@
 
 namespace {
 std::unique_ptr<TSuFDeMonClient> gClient;
-std::unique_ptr<TH1D> gHistogram;
+std::unique_ptr<TH1> gHistogram;
 }
 
 bool SuFDeMonPing()
@@ -36,16 +36,16 @@ void ListOfHistograms()
     if (gClient) std::cout << gClient->ListHistograms();
 }
 
-TH1D* SuFDeMonGet(const char* name)
+TH1* SuFDeMonGet(const char* name)
 {
     if (!gClient) return nullptr;
     gHistogram = gClient->GetHistogram(name);
     return gHistogram.get();
 }
 
-TH1D* SuFDeMonDraw(const char* name)
+TH1* SuFDeMonDraw(const char* name)
 {
-    TH1D* histogram = SuFDeMonGet(name);
+    TH1* histogram = SuFDeMonGet(name);
     if (histogram) histogram->Draw();
     return histogram;
 }
@@ -84,11 +84,11 @@ int main(int argc, char** argv)
     if (!gClient->Connect()) return 1;
 
     gInterpreter->Declare(R"(
-        class TH1D;
+        class TH1;
         bool SuFDeMonPing();
         void ListOfHistograms();
-        TH1D* SuFDeMonGet(const char*);
-        TH1D* SuFDeMonDraw(const char*);
+        TH1* SuFDeMonGet(const char*);
+        TH1* SuFDeMonDraw(const char*);
         bool SuFDeMonClear(const char*);
         bool SuFDeMonClearAll();
     )");
@@ -100,7 +100,7 @@ int main(int argc, char** argv)
               << "SuFDeMon helpers:\n"
               << "  SuFDeMonPing()\n"
               << "  ListOfHistograms()\n"
-              << "  TH1D* h = SuFDeMonGet(\"hMUSIC1_FC1_ADC0\")\n"
+              << "  TH1* h = SuFDeMonGet(\"hMUSIC1_FC1_ADC0\")\n"
               << "  SuFDeMonDraw(\"hMUSIC1_FC1_ADC0\")\n"
               << "  SuFDeMonClear(\"hMUSIC1_FC1_ADC0\")\n"
               << "  SuFDeMonClearAll()\n\n";

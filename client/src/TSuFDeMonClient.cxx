@@ -16,7 +16,7 @@
 
 #include <TCanvas.h>
 #include <TClass.h>
-#include <TH1D.h>
+#include <TH1.h>
 #include <TMessage.h>
 #include <TSocket.h>
 #include <TSystem.h>
@@ -107,7 +107,7 @@ std::string TSuFDeMonClient::ListHistograms()
     return ReceiveText();
 }
 
-std::unique_ptr<TH1D> TSuFDeMonClient::GetHistogram(const std::string& name)
+std::unique_ptr<TH1> TSuFDeMonClient::GetHistogram(const std::string& name)
 {
     if (!SendCommand(std::string(SuFDeMon::Protocol::kGet) + " " + name)) return nullptr;
 
@@ -132,14 +132,28 @@ std::unique_ptr<TH1D> TSuFDeMonClient::GetHistogram(const std::string& name)
     }
 
     TObject* object = message->ReadObject(message->GetClass());
-    auto* histogram = dynamic_cast<TH1D*>(object);
+    auto* histogram = dynamic_cast<TH1*>(object);
     if (!histogram) {
         delete object;
-        std::cerr << "Received object is not a TH1D." << std::endl;
+        std::cerr << "Received object is not a TH1." << std::endl;
         return nullptr;
     }
     histogram->SetDirectory(nullptr);
-    return std::unique_ptr<TH1D>(histogram);
+    // Apply display colors locally, including snapshots from older servers.
+    const std::string histogramName = histogram->GetName();
+    const auto quantity = histogramName.substr(histogramName.find_last_of('_') + 1);
+    if (histogram->GetDimension() == 1 &&
+        (quantity.compare(0, 3, "ADC") == 0 || quantity.compare(0, 3, "TDC") == 0)) {
+        const Color_t color = quantity.compare(0, 3, "ADC") == 0 ? kRed : kBlue;
+        histogram->SetFillStyle(1001);
+        histogram->SetFillColorAlpha(color, 0.35f);
+        histogram->SetLineColor(color);
+    }
+    if (histogram->GetDimension() == 2) {
+        histogram->SetOption("COLZ");
+        histogram->SetStats(kFALSE);
+    }
+    return std::unique_ptr<TH1>(histogram);
 }
 
 bool TSuFDeMonClient::ClearHistogram(const std::string& name)

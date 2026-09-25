@@ -22,7 +22,7 @@
 #include <atomic>
 #include <thread>
 
-class TH1D;
+class TH1;
 class TRandom3;
 class TServerSocket;
 class TSocket;
@@ -46,11 +46,11 @@ private:
     bool HandleClient(TSocket& socket);
     bool HandleCommand(TSocket& socket, const std::string& command);
 
-    TH1D* FindHistogram(const std::string& name);
+    TH1* FindHistogram(const std::string& name);
     std::string HistogramList() const;
 
     SuFDeMon::ServerConfig fConfig;
-    std::vector<std::unique_ptr<TH1D>> fHistograms;
+    std::vector<std::unique_ptr<TH1>> fHistograms;
     std::mutex fHistogramMutex;
     std::unique_ptr<TRandom3> fRandom;
     std::unique_ptr<TServerSocket> fServerSocket;

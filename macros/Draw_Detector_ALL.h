@@ -15,13 +15,13 @@
 
 #include <TCanvas.h>
 #include <TError.h>
-#include <TH1D.h>
+#include <TH1.h>
 #include <TString.h>
 #include "../common/inc/SuFDeMonPlsciLayout.h"
 
-TH1D* SuFDeMonGet(const char* name);
+TH1* SuFDeMonGet(const char* name);
 
-// PLSCI has one channel per PMT; SCIFI retains 32 channels per quantity.
+// PLSCI has one channel per PMT.
 inline void DrawDetectorAll(const char* instance, const char* quantity)
 {
     const TString canvasName = TString::Format("c%s_%s_ALL", instance, quantity);
@@ -32,7 +32,7 @@ inline void DrawDetectorAll(const char* instance, const char* quantity)
     canvas->Divide(plsci ? channels / 2 : 8, plsci ? 2 : 4, 0.001, 0.001);
     for (Int_t channel = 0; channel < channels; ++channel) {
         const TString name = TString::Format("h%s_%s%d", instance, quantity, channel);
-        TH1D* histogram = SuFDeMonGet(name.Data());
+        TH1* histogram = SuFDeMonGet(name.Data());
         canvas->cd(channel + 1);
         if (histogram)
             histogram->Draw();

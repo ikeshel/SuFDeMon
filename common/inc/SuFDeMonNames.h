@@ -21,6 +21,15 @@ namespace SuFDeMon {
 
 inline constexpr int kNFieldCages = 3;
 inline constexpr int kNAdcChannels = 32;
+inline constexpr int kNScifiChannels = 2048;
+inline constexpr int kScifiTimingBins = 256;
+
+inline std::string ScifiHistogramName(const std::string& instance, const std::string& quantity)
+{
+    if (quantity != "ToT" && quantity != "TDC")
+        throw std::invalid_argument("SCIFI quantity must be ToT or TDC");
+    return "h" + instance + "_" + quantity;
+}
 
 inline std::string InstanceHistogramName(const std::string& instance,
                                          const std::string& histogramName)

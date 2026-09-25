@@ -33,7 +33,7 @@ void ListOfHistograms()
     gSuFDeMonGui->ListOfHistograms();
 }
 
-TH1D* SuFDeMonGet(const char* name)
+TH1* SuFDeMonGet(const char* name)
 {
     if (!gSuFDeMonGui) {
         std::cerr << "The SuFDeMon GUI is not available.\n";
@@ -74,10 +74,10 @@ int main(int argc, char** argv)
 
     gInterpreter->Declare(
         "#include \"TSuFDeMonGui.h\"\n"
-        "class TH1D;\n"
+        "class TH1;\n"
         "extern TSuFDeMonGui* gSuFDeMonGui;\n"
         "void ListOfHistograms();\n"
-        "TH1D* SuFDeMonGet(const char*);\n");
+        "TH1* SuFDeMonGet(const char*);\n");
 
     std::cout << "\nSuFDeMon GUI started. ROOT command line is active.\n"
               << "The control window and TCanvas are separate windows.\n"

@@ -25,7 +25,7 @@
 #include <TGNumberEntry.h>
 #include <TGTab.h>
 #include <TGTextEntry.h>
-#include <TH1D.h>
+#include <TH1.h>
 #include <TTimer.h>
 
 #include <algorithm>
@@ -45,11 +45,18 @@ TSuFDeMonGui::TSuFDeMonGui(const TGWindow* parent, UInt_t width, UInt_t height,
     SetWindowName("SuFDeMon Controls");
 
     fTabs = new TGTab(this, width, height);
-    auto* generalTab = fTabs->AddTab("General");
-    auto* serverConnectionsTab = fTabs->AddTab("Server Connections");
+    auto* generalControlsTab = fTabs->AddTab("General Controls");
 
-    // General tab: top-level status overview.
-    auto* generalStatus = new TGGroupFrame(generalTab, "General Status", kVerticalFrame);
+    BuildDetectorTab(fTabs->AddTab("MUSIC"), 0);
+    BuildDetectorTab(fTabs->AddTab("PLSCI"), 1);
+    BuildDetectorTab(fTabs->AddTab("SCIFI"), 2);
+    ActivateDetectorControls(0);
+
+    // Connections occupy the top of the combined General Controls tab.
+    BuildServerConnectionsTab(generalControlsTab);
+
+    // Status and process controls remain together at the bottom.
+    auto* generalStatus = new TGGroupFrame(generalControlsTab, "General Status", kVerticalFrame);
     auto* generalStatusRow = new TGHorizontalFrame(generalStatus);
     fGeneralStatusButton = new TGTextButton(generalStatusRow, "Display General Status");
     fGeneralStatusLabel = new TGLabel(generalStatusRow, "Status has not been requested yet.");
@@ -62,18 +69,12 @@ TSuFDeMonGui::TSuFDeMonGui(const TGWindow* parent, UInt_t width, UInt_t height,
     generalStatus->AddFrame(
         generalStatusRow,
         new TGLayoutHints(kLHintsExpandX, 0, 0, 2, 2));
-    generalTab->AddFrame(
+    generalControlsTab->AddFrame(
         generalStatus,
-        new TGLayoutHints(kLHintsExpandX, 8, 8, 8, 4));
+        new TGLayoutHints(kLHintsExpandX, 8, 8, 4, 4));
 
-    BuildDetectorTab(fTabs->AddTab("MUSIC"), 0);
-    BuildDetectorTab(fTabs->AddTab("PLSCI"), 1);
-    BuildDetectorTab(fTabs->AddTab("SCIFI"), 2);
-    ActivateDetectorControls(0);
-
-    // Process controls stay on the General tab.
     auto* processControls =
-        new TGGroupFrame(generalTab, "Process Control", kVerticalFrame);
+        new TGGroupFrame(generalControlsTab, "Process Control", kVerticalFrame);
     auto* processRow = new TGHorizontalFrame(processControls);
     fCloseClientButton = new TGTextButton(processRow, "Close client");
     fCloseServerButton = new TGTextButton(processRow, "Close server");
@@ -92,11 +93,9 @@ TSuFDeMonGui::TSuFDeMonGui(const TGWindow* parent, UInt_t width, UInt_t height,
     processControls->AddFrame(
         processRow,
         new TGLayoutHints(kLHintsExpandX | kLHintsCenterY, 0, 0, 12, 12));
-    generalTab->AddFrame(
+    generalControlsTab->AddFrame(
         processControls,
         new TGLayoutHints(kLHintsExpandX, 8, 8, 4, 8));
-
-    BuildServerConnectionsTab(serverConnectionsTab);
 
     AddFrame(
         fTabs,
@@ -131,7 +130,7 @@ TSuFDeMonGui::TSuFDeMonGui(const TGWindow* parent, UInt_t width, UInt_t height,
     Resize(windowWidth, windowHeight);
     MapWindow();
 
-    // Keep General as the startup tab.
+    // Keep General Controls as the startup tab.
     fTabs->SetTab(0, kFALSE);
 
     // Try every configured server; failed connections remain available for retry.
@@ -153,6 +152,8 @@ TSuFDeMonGui::TSuFDeMonGui(const TGWindow* parent, UInt_t width, UInt_t height,
 
 TSuFDeMonGui::~TSuFDeMonGui()
 {
+    if (fCanvas)
+        fCanvas->Disconnect("Closed()", this, "HistogramCanvasClosed()");
     if (gSuFDeMonGui == this)
         gSuFDeMonGui = nullptr;
     if (fConnectionTimer) {
@@ -203,26 +204,29 @@ void TSuFDeMonGui::BuildDetectorTab(TGCompositeFrame* tab, int group)
     quantityRow->AddFrame(new TGLabel(quantityRow, "Quantity:"),
         new TGLayoutHints(kLHintsCenterY, 2, 8, 4, 4));
     fQuantityCombo = new TGComboBox(quantityRow);
-    fQuantityCombo->AddEntry("ADC", 0);
+    fQuantityCombo->AddEntry(group == 2 ? "ToT" : "ADC", 0);
     fQuantityCombo->AddEntry("TDC", 1);
     fQuantityCombo->Select(0);
     fQuantityCombo->Resize(160, 24);
     quantityRow->AddFrame(fQuantityCombo, new TGLayoutHints(kLHintsExpandX, 2, 2, 4, 4));
     controls->AddFrame(quantityRow, new TGLayoutHints(kLHintsExpandX));
 
-    auto* adcRow = new TGHorizontalFrame(controls);
-    adcRow->AddFrame(
-        new TGLabel(adcRow, "Channel:"),
-        new TGLayoutHints(kLHintsCenterY, 2, 8, 4, 4));
-    fAdcCombo = new TGComboBox(adcRow);
-    for (int adc = 0; adc < SuFDeMon::kNAdcChannels; ++adc)
-        fAdcCombo->AddEntry(("CH" + std::to_string(adc)).c_str(), adc);
-    fAdcCombo->Select(0);
-    fAdcCombo->Resize(160, 24);
-    adcRow->AddFrame(
-        fAdcCombo,
-        new TGLayoutHints(kLHintsExpandX, 2, 2, 4, 4));
-    controls->AddFrame(adcRow, new TGLayoutHints(kLHintsExpandX));
+    fAdcCombo = nullptr;
+    if (group != 2) {
+        auto* adcRow = new TGHorizontalFrame(controls);
+        adcRow->AddFrame(
+            new TGLabel(adcRow, "Channel:"),
+            new TGLayoutHints(kLHintsCenterY, 2, 8, 4, 4));
+        fAdcCombo = new TGComboBox(adcRow);
+        for (int adc = 0; adc < SuFDeMon::kNAdcChannels; ++adc)
+            fAdcCombo->AddEntry(("CH" + std::to_string(adc)).c_str(), adc);
+        fAdcCombo->Select(0);
+        fAdcCombo->Resize(160, 24);
+        adcRow->AddFrame(
+            fAdcCombo,
+            new TGLayoutHints(kLHintsExpandX, 2, 2, 4, 4));
+        controls->AddFrame(adcRow, new TGLayoutHints(kLHintsExpandX));
+    }
 
     controls->AddFrame(
         new TGLabel(controls, "Histogram name:"),
@@ -301,10 +305,15 @@ void TSuFDeMonGui::BuildDetectorTab(TGCompositeFrame* tab, int group)
 
         std::vector<std::string> macroNames;
         const int instances = std::array<int, 3>{2, 6, 14}[group];
-        for (int instance = 1; instance <= instances; ++instance)
-            for (const std::string quantity : {"ADC", "TDC"})
-                macroNames.push_back("Draw_" + detector + std::to_string(instance)
-                    + "_" + quantity + "_ALL.C");
+        for (int instance = 1; instance <= instances; ++instance) {
+            if (group == 2) {
+                macroNames.push_back("Draw_SCIFI" + std::to_string(instance) + "_ALL.C");
+            } else {
+                for (const std::string quantity : {"ADC", "TDC"})
+                    macroNames.push_back("Draw_" + detector + std::to_string(instance)
+                        + "_" + quantity + "_ALL.C");
+            }
+        }
         for (const auto& macroName : macroNames) {
             const auto path = macroDirectory / macroName;
             if (!std::filesystem::is_regular_file(path))
@@ -335,7 +344,7 @@ void TSuFDeMonGui::BuildDetectorTab(TGCompositeFrame* tab, int group)
         "Selected(Int_t)", "TSuFDeMonGui", this, "SelectionChanged(Int_t)");
     fQuantityCombo->Connect(
         "Selected(Int_t)", "TSuFDeMonGui", this, "SelectionChanged(Int_t)");
-    fAdcCombo->Connect(
+    if (fAdcCombo) fAdcCombo->Connect(
         "Selected(Int_t)", "TSuFDeMonGui", this, "SelectionChanged(Int_t)");
     fDrawButton->Connect(
         "Clicked()", "TSuFDeMonGui", this, "DrawSelected()");

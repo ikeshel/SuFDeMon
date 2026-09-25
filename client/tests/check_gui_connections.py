@@ -51,10 +51,10 @@ try:
                              'ListOfHistograms();',
                              f'std::cout << "LIST_END_{label}" << std::endl;'])
             listings[label] = [
-                'h' + instance + '_' + (f'FC{fc}_' if fc else '') + quantity + str(channel)
-                for instance in instances for quantity in ('ADC', 'TDC')
+                'h' + instance + '_' + (f'FC{fc}_' if fc else '') + quantity + ('' if instance.startswith('SCIFI') else str(channel))
+                for instance in instances for quantity in (('ToT', 'TDC') if instance.startswith('SCIFI') else ('ADC', 'TDC'))
                 for fc in (range(1, 4) if instance.startswith('MUSIC') else [0])
-                for channel in range((8 if instance in ('PLSCI4', 'PLSCI6') else 6) if instance.startswith('PLSCI') else 32)]
+                for channel in range((8 if instance in ('PLSCI4', 'PLSCI6') else 6) if instance.startswith('PLSCI') else (1 if instance.startswith('SCIFI') else 32))]
         check('startup_all', 'gSuFDeMonGui->ConnectedServerCount()', 22)
         for button, count in [(91, 0), (91, 0), (90, 22), (90, 22)]:
             commands.append(f'gSuFDeMonGui->ProcessMessage(MK_MSG(kC_COMMAND,kCM_BUTTON),{button},0);')
@@ -66,11 +66,20 @@ try:
             check(f'button{button}_{len(checks)}', 'gSuFDeMonGui->ConnectedServerCount()', count)
         ordered = [f'MUSIC{i}' for i in range(1,3)] + [f'PLSCI{i}' for i in range(1,7)] + [f'SCIFI{i}' for i in range(1,15)]
         list_check("all", ordered)
-        commands += ['auto* promptHistogram = SuFDeMonGet("hSCIFI14_TDC0");']
-        check('prompt_get', 'promptHistogram ? promptHistogram->GetName() : "null"', 'hSCIFI14_TDC0')
+        commands += ['auto* promptHistogram = SuFDeMonGet("hSCIFI14_TDC");']
+        check('prompt_get', 'promptHistogram ? promptHistogram->GetName() : "null"', 'hSCIFI14_TDC')
+        commands += ['#include <TColor.h>']
+        for detector in ('MUSIC1_FC1', 'PLSCI4'):
+            for quantity, color in (('ADC', 'kRed'), ('TDC', 'kBlue')):
+                name = f'h{detector}_{quantity}0'
+                commands.append(f'promptHistogram = SuFDeMonGet("{name}");')
+                check(name+'_fill',
+                      f'promptHistogram && promptHistogram->GetFillStyle() == 1001 && '
+                      f'promptHistogram->GetFillColor() == TColor::GetColorTransparent({color}, 0.35f) && '
+                      f'promptHistogram->GetLineColor() == {color}', 1)
         for index, name in enumerate(ordered):
             commands += [f'gSuFDeMonGui->SelectServer({index});', 'gSuFDeMonGui->DrawSelected();']
-            check(name, 'gSuFDeMonGui->GetHistogram()->GetName()', 'h'+name+('_FC1' if name.startswith('MUSIC') else '')+'_ADC0')
+            check(name, 'gSuFDeMonGui->GetHistogram()->GetName()', 'h'+name+('_ToT' if name.startswith('SCIFI') else ('_FC1' if name.startswith('MUSIC') else '')+'_ADC0'))
         list_check("after_selection", ordered)
         check('after_selection', 'gSuFDeMonGui->ConnectedServerCount()', 22)
         commands += [
@@ -79,26 +88,28 @@ try:
             'std::vector<TGComboBox*> combos;',
             'std::function<void(TGCompositeFrame*)> collect = [&](TGCompositeFrame* f) { TIter next(f->GetList()); while (auto* item = next()) { auto* child = static_cast<TGFrameElement*>(item)->fFrame; if (auto* c = dynamic_cast<TGComboBox*>(child)) combos.push_back(c); else if (auto* nested = dynamic_cast<TGCompositeFrame*>(child)) collect(nested); } };',
         ]
-        for tab, detector, count, server, channel in [(2, 'MUSIC', 2, 1, 26), (3, 'PLSCI', 6, 3, 5), (4, 'SCIFI', 14, 10, 11)]:
+        for tab, detector, count, server, channel in [(1, 'MUSIC', 2, 1, 26), (2, 'PLSCI', 6, 3, 5), (3, 'SCIFI', 14, 10, 11)]:
             commands += [f'tabs->SetTab({tab});', 'combos.clear(); collect(tabs->GetCurrentContainer());']
             check(detector+'_server_count', 'combos[0]->GetNumberOfEntries()', count)
-            check(detector+'_control_count', 'combos.size()', 5 if tab == 2 else 4)
-            quantity_index = 2 if tab == 2 else 1
-            channel_index = 3 if tab == 2 else 2
-            commands += [f'combos[0]->Select({server});', f'combos[{quantity_index}]->Select(1);', f'combos[{channel_index}]->Select({channel});']
-            if tab == 2:
+            check(detector+'_control_count', 'combos.size()', 5 if tab == 1 else (3 if tab == 3 else 4))
+            quantity_index = 2 if tab == 1 else 1
+            channel_index = 3 if tab == 1 else 2
+            commands += [f'combos[0]->Select({server});', f'combos[{quantity_index}]->Select(1);']
+            if tab != 3: commands += [f'combos[{channel_index}]->Select({channel});']
+            if tab == 1:
                 commands += ['combos[1]->Select(2);']
             commands += ['gSuFDeMonGui->DrawSelected();']
-            expected = ['hMUSIC2_FC2_TDC26', 'hPLSCI2_TDC5', 'hSCIFI3_TDC11'][tab-2]
+            expected = ['hMUSIC2_FC2_TDC26', 'hPLSCI2_TDC5', 'hSCIFI3_TDC'][tab-1]
             check(detector+'_tab_draw', 'gSuFDeMonGui->GetHistogram()->GetName()', expected)
-        for tab, name in [(2, 'hMUSIC2_FC2_TDC26'), (3, 'hPLSCI2_TDC5'), (4, 'hSCIFI3_TDC11')]:
+        for tab, name in [(1, 'hMUSIC2_FC2_TDC26'), (2, 'hPLSCI2_TDC5'), (3, 'hSCIFI3_TDC')]:
             commands += [f'tabs->SetTab({tab});', 'gSuFDeMonGui->DrawSelected();']
             check('retained_tab'+str(tab), 'gSuFDeMonGui->GetHistogram()->GetName()', name)
-            quantity_index = 2 if tab == 2 else 1
-            channel_index = 3 if tab == 2 else 2
-            commands += ['combos.clear(); collect(tabs->GetCurrentContainer());', f'combos[{quantity_index}]->Select(0);', f'combos[{channel_index}]->Select(0);']
+            quantity_index = 2 if tab == 1 else 1
+            channel_index = 3 if tab == 1 else 2
+            commands += ['combos.clear(); collect(tabs->GetCurrentContainer());', f'combos[{quantity_index}]->Select(0);']
+            if tab != 3: commands += [f'combos[{channel_index}]->Select(0);']
         check('tabs_keep_connections', 'gSuFDeMonGui->ConnectedServerCount()', 22)
-        commands += ['tabs->SetTab(3);', 'combos.clear(); collect(tabs->GetCurrentContainer());']
+        commands += ['tabs->SetTab(2);', 'combos.clear(); collect(tabs->GetCurrentContainer());']
         for instance, channels in [(4, 8), (5, 6), (6, 8), (1, 6), (2, 6), (3, 6)]:
             commands += [f'combos[0]->Select({instance+1});']
             check(f'PLSCI{instance}_channels', 'combos[2]->GetNumberOfEntries()', channels)
@@ -106,10 +117,34 @@ try:
             commands += [f'combos[2]->Select({channels-1});', 'gSuFDeMonGui->DrawSelected();']
             check(f'PLSCI{instance}_last_pmt', 'gSuFDeMonGui->GetHistogram()->GetName()', f'hPLSCI{instance}_ADC{channels-1}')
         commands += ['combos[2]->Select(0);']
-        commands += ['tabs->SetTab(2);', 'gSuFDeMonGui->DrawSelectedMacro();']
+        commands += ['tabs->SetTab(1);', 'gSuFDeMonGui->DrawSelectedMacro();']
         check('music_macro_canvas', 'gROOT->FindObject("cMUSIC1_ADC_ALL") != nullptr', 1)
         commands += ['#include <TCanvas.h>', '#include <TPad.h>']
-        for tab, detector, instances in [(3, 'PLSCI', 6), (4, 'SCIFI', 14)]:
+        # Exercise the real SCIFI button signals, including a user-closed canvas.
+        commands += [
+            'tabs->SetTab(3);', 'combos.clear(); collect(tabs->GetCurrentContainer());',
+            'combos[0]->Select(8);',
+            'std::vector<TGTextButton*> scifiButtons;',
+            'std::function<void(TGCompositeFrame*)> collectButtons = [&](TGCompositeFrame* f) { TIter next(f->GetList()); while (auto* item = next()) { auto* child = static_cast<TGFrameElement*>(item)->fFrame; if (auto* b = dynamic_cast<TGTextButton*>(child)) { if (!dynamic_cast<TGCheckButton*>(b)) scifiButtons.push_back(b); } else if (auto* nested = dynamic_cast<TGCompositeFrame*>(child)) collectButtons(nested); } };',
+            'collectButtons(tabs->GetCurrentContainer());',
+        ]
+        for quantity_index, quantity in enumerate(('ToT', 'TDC')):
+            commands += [f'combos[1]->Select({quantity_index});',
+                         'static_cast<TCanvas*>(gROOT->FindObject("SuFDeMonCanvas"))->Close();',
+                         'scifiButtons[0]->Clicked();']
+            check('scifi_reopen_'+quantity,
+                  '[]() { auto* c = static_cast<TCanvas*>(gROOT->GetListOfCanvases()->FindObject("SuFDeMonCanvas")); '
+                  f'return c && c->GetCanvasImp() && c->FindObject("hSCIFI1_{quantity}"); }}()', 1)
+            commands += ['gSystem->Sleep(200);', 'scifiButtons[0]->Clicked();',
+                         f'double beforeClear{quantity} = gSuFDeMonGui->GetHistogram()->GetEntries();',
+                         'static_cast<TCanvas*>(gROOT->FindObject("SuFDeMonCanvas"))->Close();',
+                         'scifiButtons[1]->Clicked();']
+            check('scifi_clear_'+quantity,
+                  f'std::string(gSuFDeMonGui->GetHistogram()->GetName()) == "hSCIFI1_{quantity}" && '
+                  f'gSuFDeMonGui->GetHistogram()->GetEntries() < beforeClear{quantity}', 1)
+            check('scifi_clear_reopen_'+quantity,
+                  'gROOT->GetListOfCanvases()->FindObject("SuFDeMonCanvas") != nullptr', 1)
+        for tab, detector, instances in [(2, 'PLSCI', 6)]:
             commands += [f'tabs->SetTab({tab});', 'combos.clear(); collect(tabs->GetCurrentContainer());']
             check(detector+'_macro_count', 'combos.back()->GetNumberOfEntries()', instances * 2)
             for instance in range(1, instances + 1):
@@ -127,6 +162,20 @@ try:
                           f'return found; }}()', channels)
                     commands += [f'delete gROOT->FindObject("{canvas}");']
 
+        commands += ['tabs->SetTab(3);', 'combos.clear(); collect(tabs->GetCurrentContainer());']
+        check('SCIFI_macro_count', 'combos.back()->GetNumberOfEntries()', 14)
+        for instance in range(1, 15):
+            canvas = f'cSCIFI{instance}_ALL'
+            commands += [f'combos.back()->Select({instance-1});', 'gSuFDeMonGui->DrawSelectedMacro();']
+            check(canvas+'_pads', f'static_cast<TCanvas*>(gROOT->FindObject("{canvas}"))->GetListOfPrimitives()->GetSize()', 2)
+            for pad, quantity in enumerate(('ToT', 'TDC'), 1):
+                name = f'hSCIFI{instance}_{quantity}'
+                check(name+'_map',
+                      f'[]() {{ auto* c = static_cast<TCanvas*>(gROOT->FindObject("{canvas}")); '
+                      f'auto* h = dynamic_cast<TH1*>(c->GetPad({pad})->FindObject("{name}")); '
+                      f'return h && h->GetDimension() == 2 && h->GetNbinsX() == 2048 && '
+                      f'std::string(h->GetOption()) == "COLZ"; }}()', 1)
+            commands += [f'delete gROOT->FindObject("{canvas}");']
         # Disconnect just MUSIC; verify PLSCI and SCIFI still serve histograms.
         commands.append('gSuFDeMonGui->ProcessMessage(MK_MSG(kC_COMMAND,kCM_BUTTON),101,0);')
         list_check("music_off", ordered[2:])
@@ -176,7 +225,7 @@ try:
         result = subprocess.run([str(build/'client/SuFDeMonClient'), 'localhost', str(ports['SCIFI13'])],
                                 input='ListOfHistograms();\nstd::cout << "PING=" << SuFDeMonPing() << std::endl;\n.q\n',
                                 text=True, capture_output=True, timeout=10)
-        assert 'hSCIFI13_TDC31' in result.stdout
+        assert 'hSCIFI13_TDC' in result.stdout
         assert 'PING=1' in result.stdout, result.stdout + result.stderr
         print('PASS: 22 simultaneous GUI connections, group isolation, individual toggle, drawing, reconnect, and cleanup')
 finally:

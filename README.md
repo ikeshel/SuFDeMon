@@ -32,7 +32,7 @@ The project provides a ROOT network server that owns detector histograms and rem
 |                  |                               |                  |
 | SuFDeMonServer |                               | SuFDeMonClient |
 |                  |                               |                  |
-| owns/fills TH1D  |                               | ROOT / TRint CLI |
+| owns/fills TH1/2  |                               | ROOT / TRint CLI |
 +------------------+                               +------------------+
         ^
         |                                           
@@ -116,7 +116,7 @@ Three dedicated executables share the server transport and protocol:
 | --- | --- | --- | --- |
 | MUSIC | `SuFDeMonMUSICServer` | MUSIC1, MUSIC2 | 3 × 32 ADC + 3 × 32 TDC histograms |
 | PLSCI | `SuFDeMonPLSCIServer` | PLSCI1–PLSCI6 | One ADC and one TDC histogram per PMT: 6 or 8 of each |
-| SCIFI | `SuFDeMonSCIFIServer` | SCIFI1–SCIFI14 | 32 ADC + 32 TDC histograms (provisional layout) |
+| SCIFI | `SuFDeMonSCIFIServer` | SCIFI1–SCIFI14 | 2 TH2D maps: ToT and TDC versus 2048 readout channels |
 
 Build with `make servers` or the normal CMake build. Each process owns its
 histograms independently. Histogram names include the instance name.
@@ -156,10 +156,10 @@ Use `--help` for syntax. Copy a config and change its instance and hostname to
 add more instances; the counts are not hardcoded.
 
 All detector types support `INFO`, `PING`, `LIST`, `GET`, `CLEAR`, `CLEAR ALL`,
-`QUIT` and `SHUTDOWN`. The GUI supports ADC/TDC selection, drawing, clearing,
+`QUIT` and `SHUTDOWN`. The GUI supports ADC/TDC (SCIFI: ToT/TDC) selection, drawing, clearing,
 and automatic updates for all types; field cages apply only to MUSIC.
 
-All histograms currently contain simulated data. ADC and TDC use 4096 bins
+All histograms currently contain simulated data. MUSIC and PLSCI ADC/TDC use 4096 bins
 from 0 to 4096 in raw counts; TDC values are not calibrated time units.
 PLSCI has six detectors, with one ADC and one TDC histogram per PMT:
 
@@ -170,7 +170,15 @@ PLSCI has six detectors, with one ADC and one TDC histogram per PMT:
 
 There are 40 PLSCI PMTs and 80 PLSCI histograms in total. The GUI channel
 selector follows the selected detector. Restart the PLSCI servers after
-rebuilding to apply this layout. SCIFI retains its provisional channels 0–31.
+rebuilding to apply this layout.
+
+Each SCIFI instance publishes exactly two `TH2D` maps: `hSCIFI<N>_ToT`
+(time over threshold, the amplitude-related measurement) and `hSCIFI<N>_TDC`.
+The horizontal axis has 2048 bins centered on readout channels 0–2047.
+The vertical axis currently has 256 bins over 0–4096 raw counts for both
+quantities; physical timing units and ranges remain to be calibrated.
+The simulated source fills all channels in both maps. Rebuild and restart the
+SCIFI servers and client to replace the former per-channel ADC/TDC layout.
 
 ### Running servers in Screen
 
@@ -269,13 +277,15 @@ The control window provides:
 - independent connections to all configured servers simultaneously
 - MUSIC, PLSCI, and SCIFI columns with **Connect all** / **Disconnect all**
 - individual server buttons to toggle each connection
+- one **General Controls** tab containing connection controls at the top, followed
+  by General Status and Process Control at the bottom
 - connection summary, global **Connect all** / **Disconnect all**, and Refresh Status
-  at the top of the Server Connections tab
+  at the top of General Controls
 - separate **MUSIC**, **PLSCI**, and **SCIFI** drawing tabs, each with its own
-  detector-filtered server selector, ADC/TDC selection, channel, and refresh settings
+  detector-filtered server selector, quantity selection, and refresh settings
 - selections retained when switching detector tabs; connections stay open
 - MUSIC field-cage selection
-- ADC/TDC quantity and channel selection
+- MUSIC/PLSCI ADC/TDC and channel selection; SCIFI ToT/TDC map selection
 - Draw
 - Clear
 - Clear All
@@ -284,8 +294,8 @@ The control window provides:
 
 **Auto update is enabled by default with a 1.0 second interval.** After a histogram has been drawn, a ROOT `TTimer` periodically requests a fresh snapshot from the server and redraws the existing canvas.
 
-General retains status and process controls; Server Connections retains the shared
-connection groups. MUSIC alone has a field-cage selector. Switching detector tabs
+General Controls contains the shared connection groups, status, and process
+controls. MUSIC alone has a field-cage selector. Switching detector tabs
 pauses automatic drawing until Draw is clicked for that selection.
 
 The histogram canvas is intentionally a normal, separate ROOT `TCanvas`, rather than being embedded in the control window.
@@ -300,7 +310,7 @@ selected drawing tab does not need to match the histogram:
 
 ```cpp
 root [0] ListOfHistograms()
-root [1] TH1D* h = SuFDeMonGet("hSCIFI14_TDC0")
+root [1] TH1* h = SuFDeMonGet("hSCIFI14_TDC")
 root [2] h->Draw()
 root [3] h->GetEntries()
 root [4] h->GetMean()
@@ -309,7 +319,18 @@ root [4] h->GetMean()
 `SuFDeMonGet()` returns `nullptr` and prints a diagnostic if the named server is
 disconnected, the histogram does not exist, or the name does not match a
 configured instance. Histograms fetched from the prompt are snapshots owned by
-the GUI and remain valid until the GUI closes.
+the GUI and remain valid until the GUI closes. The return type is `TH1*`,
+the common ROOT base for MUSIC/PLSCI `TH1D` and SCIFI `TH2D` objects.
+For 2D-specific operations, use `dynamic_cast<TH2D*>(h)` after including
+`TH2D.h`. SCIFI maps draw with `COLZ`, with color representing event counts.
+
+Fetched 1D ADC histograms use red fills and 1D TDC histograms use blue fills at
+35% opacity, with matching solid outlines. This applies to individual plots,
+drawing macros, and refreshed snapshots. ROOT's standard Linux X11 canvas
+shows these fills opaque. Transparency is supported in PDF/PNG exports and
+OpenGL canvases. To opt into OpenGL, run `gStyle->SetCanvasPreferGL(kTRUE)`
+before creating drawing canvases; this requires an OpenGL-capable ROOT build
+and can slow down large multi-pad displays.
 
 ### MUSIC drawing macros
 
@@ -337,16 +358,17 @@ parent macro directory if the GUI is launched outside the repository tree.
 ### PLSCI and SCIFI drawing macros
 
 The PLSCI and SCIFI tabs each have their own **Custom Drawings** selector and
-**Draw macro** button. ADC and TDC macros are provided for PLSCI1–PLSCI6 and
-SCIFI1–SCIFI14. PLSCI macros use a 3-by-2 canvas for six PMTs or a 4-by-2
-canvas for eight PMTs. SCIFI draws channels 0–31 on an 8-by-4 canvas, using the instance
-named in the macro regardless of the single-histogram server selection.
+**Draw macro** button. ADC and TDC macros are provided for PLSCI1–PLSCI6.
+PLSCI macros use a 3-by-2 canvas for six PMTs or a 4-by-2 canvas for eight PMTs.
+Each SCIFI1–SCIFI14 macro draws only two maps side by side: ToT versus channel
+and TDC versus channel, both with `COLZ`. The macro uses its named instance
+regardless of the single-histogram server selection.
 
 ```cpp
 root [7] .x macros/PLSCI/Draw_PLSCI1_ADC_ALL.C
 root [8] .x macros/PLSCI/Draw_PLSCI3_TDC_ALL.C
-root [9] .x macros/SCIFI/Draw_SCIFI1_ADC_ALL.C
-root [10] .x macros/SCIFI/Draw_SCIFI14_TDC_ALL.C
+root [9] .x macros/SCIFI/Draw_SCIFI1_ALL.C
+root [10] .x macros/SCIFI/Draw_SCIFI14_ALL.C
 ```
 
 The corresponding server must be connected. These macros draw snapshots;
@@ -377,7 +399,7 @@ SuFDeMon helper functions. For example:
 ```cpp
 root [0] SuFDeMonPing()
 root [1] ListOfHistograms()
-root [2] TH1D* h = SuFDeMonGet("hMUSIC1_FC1_ADC0")
+root [2] TH1* h = SuFDeMonGet("hMUSIC1_FC1_ADC0")
 root [3] h->Draw()
 root [4] h->GetEntries()
 root [5] h->GetMean()
@@ -423,13 +445,14 @@ Example:
 ```text
 hMUSIC1_FC2_ADC15
 hMUSIC2_FC2_TDC26
-hSCIFI1_ADC0
-hSCIFI1_TDC0
+hSCIFI1_ToT
+hSCIFI1_TDC
 hPLSCI1_ADC0
 hPLSCI1_TDC0
 ```
 
-PLSCI and SCIFI names omit the field-cage component.
+PLSCI and SCIFI names omit the field-cage component. SCIFI map names also omit
+the channel suffix: all 2048 channels belong to each map.
 
 Shared detector constants and naming helpers are kept under `common/` so that the server and clients use exactly the same definitions.
 

@@ -29,7 +29,7 @@ class TGLabel;
 class TGTab;
 class TGCompositeFrame;
 class TCanvas;
-class TH1D;
+class TH1;
 class TTimer;
 class TSuFDeMonClient;
 
@@ -49,9 +49,10 @@ public:
     void DisconnectGroup(Int_t group);
     int ConnectedServerCount() const;
     void ListOfHistograms();
-    TH1D* FetchHistogram(const char* name);
+    TH1* FetchHistogram(const char* name);
     void DrawSelectedMacro();
     void DrawSelected();
+    void HistogramCanvasClosed();
     void ClearSelected();
     void ClearAllHistograms();
     void AutoUpdateToggled();
@@ -68,7 +69,7 @@ public:
     Bool_t ProcessMessage(Longptr_t msg, Longptr_t parm1, Longptr_t parm2) override;
 
     TSuFDeMonClient* GetClient() const { return fClient.get(); }
-    TH1D* GetHistogram() const { return fHistogram.get(); }
+    TH1* GetHistogram() const { return fHistogram.get(); }
 
 private:
     std::string SelectedHistogramName() const;
@@ -133,8 +134,8 @@ private:
     std::string fConnectedInstance = "MUSIC1";
     std::vector<std::shared_ptr<TSuFDeMonClient>> fServerClients; //!
     std::shared_ptr<TSuFDeMonClient> fClient; //!
-    std::unique_ptr<TH1D> fHistogram;
-    std::vector<std::unique_ptr<TH1D>> fPromptHistograms; //!
+    std::unique_ptr<TH1> fHistogram;
+    std::vector<std::unique_ptr<TH1>> fPromptHistograms; //!
     TCanvas* fCanvas = nullptr;
     TTimer* fUpdateTimer = nullptr;
     TTimer* fConnectionTimer = nullptr;
