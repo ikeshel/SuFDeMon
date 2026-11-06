@@ -115,7 +115,7 @@ Three dedicated executables share the server transport and protocol:
 | Type | Executable | Example instances | Histogram status |
 | --- | --- | --- | --- |
 | MUSIC | `SuFDeMonMUSICServer` | MUSIC1, MUSIC2 | 3 × 32 ADC + 3 × 32 TDC histograms |
-| PLSCI | `SuFDeMonPLSCIServer` | PLSCI1–PLSCI6 | One ADC and one TDC histogram per PMT: 6 or 8 of each |
+| PLSCI | `SuFDeMonPLSCIServer` | PLSCI1–PLSCI3 (six chambers) | One ADC and one TDC histogram per PMT: 6 or 8 of each |
 | SCIFI | `SuFDeMonSCIFIServer` | SCIFI1–SCIFI14 | 2 TH2D maps: ToT and TDC versus 2048 readout channels |
 
 Build with `make servers` or the normal CMake build. Each process owns its
@@ -139,7 +139,7 @@ server machine:
 # Likewise SCIFI2.conf through SCIFI14.conf, each on its readout PC.
 ```
 
-Example ports are MUSIC `10001–10002`, PLSCI `10101–10106`, and SCIFI
+Example ports are MUSIC `10001–10002`, PLSCI `10101–10103`, and SCIFI
 `10201–10214`; each can be changed independently. The same port also works on
 different machines. For multiple processes on
 one machine, assign distinct ports. Command-line options override config values:
@@ -161,12 +161,34 @@ and automatic updates for all types; field cages apply only to MUSIC.
 
 All histograms currently contain simulated data. MUSIC and PLSCI ADC/TDC use 4096 bins
 from 0 to 4096 in raw counts; TDC values are not calibrated time units.
-PLSCI has six detectors, with one ADC and one TDC histogram per PMT:
+PLSCI has six chambers on three servers, with one ADC and one TDC histogram per PMT:
 
 | Detectors | PMTs | ADC channels | TDC channels | Histograms per detector |
 | --- | --- | --- | --- | --- |
 | PLSCI1, PLSCI2, PLSCI3, PLSCI5 | 6 | 0–5 | 0–5 | 12 |
 | PLSCI4, PLSCI6 | 8 | 0–7 | 0–7 | 16 |
+
+All supplied server configs currently use `localhost` for local testing.
+The planned PLSCI readout-PC assignments group the chambers as follows. Histogram detector IDs
+remain unchanged so existing drawing macros continue to work.
+
+| Config | Planned host | Port | Chambers (histogram detector ID) |
+| --- | --- | --- | --- |
+| PLSCI1 | x86l-208 | 10101 | FPF2 (PLSCI1) |
+| PLSCI2 | x86l-209 | 10102 | FPF4 (PLSCI2), FMF1 (PLSCI3) |
+| PLSCI3 | x86l-132 | 10103 | FMF2 (PLSCI4), FMF3 (PLSCI5), FHF1 (PLSCI6) |
+
+The optional `chambers` config key lists comma-separated chamber names. Each
+server serves ADC/TDC histograms for all its assigned chambers. In the PLSCI
+client tab, select the server and then the chamber. FMF2 and FHF1 have eight
+PMTs; the other chambers have six. **Clear All** clears every chamber on the
+selected server.
+
+For deployment, set `hostname` to the planned readout PC in each config.
+Launch only the matching config on each readout PC, for example
+`./scripts/start_servers.sh PLSCI2` on `x86l-209`. The scripts and server-control
+window run processes locally; they do not dispatch to the advertised hostname.
+Stop the old six-server deployment before starting the new three-server setup.
 
 There are 40 PLSCI PMTs and 80 PLSCI histograms in total. The GUI channel
 selector follows the selected detector. Restart the PLSCI servers after
@@ -190,7 +212,7 @@ ROOT environment as usual. Run these scripts on each detector readout PC:
 ./scripts/start_servers.sh MUSIC1
 ./scripts/start_servers.sh PLSCI2 SCIFI14
 
-# For local testing, start all 22 configurations.
+# For local testing, start all 19 configurations.
 ./scripts/start_servers.sh
 
 screen -ls
@@ -225,14 +247,14 @@ python3 control/server_control.py
 ```
 
 The top row starts or stops all local servers. The second row has MUSIC (2),
-PLSCI (6), and SCIFI (14) columns with one toggle button per instance. Buttons
+PLSCI (3), and SCIFI (14) columns with one toggle button per instance. Buttons
 show the local Screen-session state and start or stop that server when clicked.
 See [control/README.md](control/README.md) for requirements, behavior, and tests.
 
 ### Server checks
 
 With testing enabled (the default), run `ctest --test-dir build --output-on-failure`.
-The integration test launches all 22 example instances locally on separate
+The integration test launches all 19 example instances locally on separate
 ports, checks their identity and histogram behavior, and shuts them down.
 
 ## Running the server
@@ -381,7 +403,7 @@ selected histogram server; **Close All** shuts down all connected servers and
 closes the client.
 
 The `gui_connections` CTest integration test uses temporary server configurations
-and isolated ports to exercise all 22 connections. It needs an X display and is
+and isolated ports to exercise all 19 connections. It needs an X display and is
 skipped when `DISPLAY` is unset; use `xvfb-run ctest --test-dir build -R gui_connections`
 for a virtual display.
 

@@ -10,6 +10,8 @@
 #include <string>
 #include <thread>
 #include <algorithm>
+#include <sstream>
+#include <vector>
 
 namespace {
 void Require(bool condition, const char* message)
@@ -41,7 +43,7 @@ std::unique_ptr<TH1> Get(TSocket& socket, const std::string& name)
 int main(int argc, char** argv)
 {
     try {
-        Require(argc == 4, "Expected port, type, instance");
+        Require(argc == 4 || argc == 5, "Expected port, type, instance");
         const int port = std::stoi(argv[1]);
         const std::string type = argv[2], instance = argv[3];
         std::unique_ptr<TSocket> socket;
@@ -52,11 +54,24 @@ int main(int argc, char** argv)
         }
         Require(socket->IsValid(), "Server did not start");
         Require(Request(*socket, "PING") == "PONG", "PING failed");
+        const std::string chambers = argc == 5 ? argv[4] : "";
+        std::vector<std::string> instances{instance};
+        if (!chambers.empty()) {
+            instances.clear();
+            std::istringstream input(chambers);
+            std::string chamber;
+            while (std::getline(input, chamber, ',')) {
+                const std::vector<std::string> names = {"FPF2", "FPF4", "FMF1", "FMF2", "FMF3", "FHF1"};
+                auto found = std::find(names.begin(), names.end(), chamber);
+                Require(found != names.end(), "Unknown chamber");
+                instances.push_back("PLSCI" + std::to_string(found - names.begin() + 1));
+            }
+        }
         const auto info = Request(*socket, "INFO");
         Require(info == "type=" + type + "\ninstance=" + instance
-            + "\nhostname=localhost\nport=" + std::to_string(port) + "\n", "Incorrect identity");
+            + "\nhostname=localhost\nport=" + std::to_string(port) + "\n"
+            + (chambers.empty() ? "" : "chambers=" + chambers + "\n"), "Incorrect identity");
         const auto list = Request(*socket, "LIST");
-        const int channels = type == "PLSCI" ? ((instance == "PLSCI4" || instance == "PLSCI6") ? 8 : 6) : 32;
         if (type == "MUSIC") {
             Require(std::count(list.begin(), list.end(), '\n') == 192, "MUSIC histogram count changed");
             Require(list.find("h" + instance + "_FC3_ADC31\n") != std::string::npos,
@@ -98,31 +113,37 @@ int main(int argc, char** argv)
             Require(Request(*socket, "GET h" + instance + "_ADC0") == "ERROR histogram not found",
                 "Obsolete SCIFI per-channel histogram exposed");
         } else {
-            Require(std::count(list.begin(), list.end(), '\n') == channels * 2, "ADC/TDC count changed");
+            int total = 0;
+            for (const auto& detector : instances)
+                total += (detector == "PLSCI4" || detector == "PLSCI6") ? 16 : 12;
+            Require(std::count(list.begin(), list.end(), '\n') == total, "ADC/TDC count changed");
         }
-        for (const std::string quantity : {"ADC", "TDC"}) {
-            if (type == "SCIFI") break;
-            if (type == "PLSCI") {
-                const auto invalid = "h" + instance + "_" + quantity + std::to_string(channels);
-                Require(Request(*socket, "GET " + invalid) == "ERROR histogram not found", "Nonexistent PMT exposed");
-                Require(Request(*socket, "CLEAR " + invalid) == "ERROR histogram not found", "Nonexistent PMT cleared");
-            }
-            const int cages = type == "MUSIC" ? 3 : 0;
-            for (int fc = cages ? 1 : 0; fc <= cages; ++fc) {
-                for (int channel = 0; channel < channels; ++channel) {
-                    const auto name = "h" + instance + "_" +
-                        (fc ? "FC" + std::to_string(fc) + "_" : "") + quantity + std::to_string(channel);
-                    Require(list.find(name + "\n") != std::string::npos, "Missing ADC/TDC channel");
-                    auto histogram = Get(*socket, name);
-                    Require(std::string(histogram->GetName()) == name, "Wrong object name");
-                    Require(histogram->GetNbinsX() == 4096 && histogram->GetXaxis()->GetXmin() == 0.0
-                        && histogram->GetXaxis()->GetXmax() == 4096.0, "Wrong raw-count binning");
-                    for (int retry = 0; histogram->GetEntries() == 0 && retry < 20; ++retry) {
-                        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-                        histogram = Get(*socket, name);
+        for (const auto& instance : instances) {
+            const int channels = type == "PLSCI" ? ((instance == "PLSCI4" || instance == "PLSCI6") ? 8 : 6) : 32;
+            for (const std::string quantity : {"ADC", "TDC"}) {
+                if (type == "SCIFI") break;
+                if (type == "PLSCI") {
+                    const auto invalid = "h" + instance + "_" + quantity + std::to_string(channels);
+                    Require(Request(*socket, "GET " + invalid) == "ERROR histogram not found", "Nonexistent PMT exposed");
+                    Require(Request(*socket, "CLEAR " + invalid) == "ERROR histogram not found", "Nonexistent PMT cleared");
+                }
+                const int cages = type == "MUSIC" ? 3 : 0;
+                for (int fc = cages ? 1 : 0; fc <= cages; ++fc) {
+                    for (int channel = 0; channel < channels; ++channel) {
+                        const auto name = "h" + instance + "_" +
+                            (fc ? "FC" + std::to_string(fc) + "_" : "") + quantity + std::to_string(channel);
+                        Require(list.find(name + "\n") != std::string::npos, "Missing ADC/TDC channel");
+                        auto histogram = Get(*socket, name);
+                        Require(std::string(histogram->GetName()) == name, "Wrong object name");
+                        Require(histogram->GetNbinsX() == 4096 && histogram->GetXaxis()->GetXmin() == 0.0
+                            && histogram->GetXaxis()->GetXmax() == 4096.0, "Wrong raw-count binning");
+                        for (int retry = 0; histogram->GetEntries() == 0 && retry < 20; ++retry) {
+                            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                            histogram = Get(*socket, name);
+                        }
+                        Require(histogram->GetEntries() > 0, "Channel not filling");
+                        Require(Request(*socket, "CLEAR " + name) == "OK", "Channel CLEAR failed");
                     }
-                    Require(histogram->GetEntries() > 0, "Channel not filling");
-                    Require(Request(*socket, "CLEAR " + name) == "OK", "Channel CLEAR failed");
                 }
             }
         }

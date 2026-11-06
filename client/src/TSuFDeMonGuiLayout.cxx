@@ -183,15 +183,17 @@ void TSuFDeMonGui::BuildDetectorTab(TGCompositeFrame* tab, int group)
     controls->AddFrame(serverRow, new TGLayoutHints(kLHintsExpandX));
 
     fFieldCageCombo = nullptr;
-    if (group == 0) {
+    if (group != 2) {
         auto* fcRow = new TGHorizontalFrame(controls);
         fcRow->AddFrame(
-            new TGLabel(fcRow, "Field Cage:"),
+            new TGLabel(fcRow, group == 0 ? "Field Cage:" : "Chamber:"),
             new TGLayoutHints(kLHintsCenterY, 2, 8, 4, 4));
         fFieldCageCombo = new TGComboBox(fcRow);
-        for (int fc = 1; fc <= SuFDeMon::kNFieldCages; ++fc)
-            fFieldCageCombo->AddEntry(("FC" + std::to_string(fc)).c_str(), fc);
-        fFieldCageCombo->Select(1);
+        if (group == 0) {
+            for (int fc = 1; fc <= SuFDeMon::kNFieldCages; ++fc)
+                fFieldCageCombo->AddEntry(("FC" + std::to_string(fc)).c_str(), fc);
+            fFieldCageCombo->Select(1);
+        }
         fFieldCageCombo->Resize(160, 24);
         fcRow->AddFrame(
             fFieldCageCombo,

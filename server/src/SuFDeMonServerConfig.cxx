@@ -11,6 +11,7 @@
 // See the LICENSE file in the project root for the full license text.
 
 #include "SuFDeMonServerConfig.h"
+#include "SuFDeMonPlsciLayout.h"
 
 #include <algorithm>
 #include <cctype>
@@ -60,6 +61,14 @@ int ParseServerPort(const std::string& text)
 void ValidateServerConfig(const ServerConfig& config)
 {
     DetectorTypeName(config.type);
+    if (!config.chambers.empty()) {
+        if (config.type != DetectorType::PLSCI)
+            throw std::invalid_argument("Chambers are only supported for PLSCI");
+        std::set<std::string> seen;
+        for (const auto& chamber : PlsciChambers(config.chambers))
+            if (PlsciInstance(chamber).empty() || !seen.insert(chamber).second)
+                throw std::invalid_argument("Unknown or duplicate PLSCI chamber: " + chamber);
+    }
     ParseServerPort(std::to_string(config.port));
     if (config.instance.empty() || !std::all_of(config.instance.begin(), config.instance.end(),
         [](unsigned char c) { return std::isalnum(c) || c == '_' || c == '-'; }))
@@ -89,6 +98,10 @@ ServerConfig ReadServerConfig(const std::string& path)
         if (key == "type") config.type = ParseDetectorType(value);
         else if (key == "instance") config.instance = value;
         else if (key == "hostname") config.hostname = value;
+        else if (key == "chambers") {
+            if (value.empty()) throw std::invalid_argument("Chambers must not be empty");
+            config.chambers = value;
+        }
         else if (key == "port") config.port = ParseServerPort(value);
         else throw std::invalid_argument("Unknown config key: " + key);
     }

@@ -11,7 +11,7 @@ reservations = []
 try:
     # Reserve distinct local ports, releasing each just before its server starts.
     configs = sorted((source / 'config/servers').glob('*.conf'))
-    assert len(configs) == 22
+    assert len(configs) == 19
     for _ in configs:
         reservation = socket.socket()
         reservation.bind(('127.0.0.1', 0))
@@ -30,17 +30,26 @@ try:
                                         '--hostname', 'localhost', '--config', str(config)],
                                        stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
             processes.append(process)
-            jobs.append((process, port, kind, instance))
-        for process, port, kind, instance in jobs:
-            result = subprocess.run([str(probe), str(port), kind, instance],
+            jobs.append((process, port, kind, instance, values.get("chambers", "")))
+        for process, port, kind, instance, chambers in jobs:
+            result = subprocess.run([str(probe), str(port), kind, instance, chambers],
                                     capture_output=True, text=True, timeout=15)
             assert result.returncode == 0, (instance, result.stdout, result.stderr)
             assert process.wait(timeout=5) == 0, (instance, process.stderr.read())
+        plsci = [dict(line.split('=', 1) for line in c.read_text().splitlines()
+                      if line and not line.startswith('#')) for c in configs if c.stem.startswith('PLSCI')]
+        assert [(v['hostname'], v['chambers']) for v in plsci] == [
+            ('localhost', 'FPF2'), ('localhost', 'FPF4,FMF1'), ('localhost', 'FMF2,FMF3,FHF1')]
         generic = build / 'SuFDeMonServer'
         for args in [['--port', '0'], ['--port', '65536'], ['10001junk'],
                      ['--type', 'OTHER'], ['--port'], ['--unknown'],
                      ['--instance', 'bad name'], ['--config', '/nonexistent/config']]:
             assert subprocess.run([str(generic), *args], capture_output=True, timeout=5).returncode != 0, args
+        for chambers in ('', 'UNKNOWN', 'FPF2,FPF2', 'FPF2,', ',FPF2'):
+            config = pathlib.Path(temporary) / 'invalid-chambers.conf'
+            config.write_text(f'type=PLSCI\ninstance=PLSCI1\nhostname=localhost\nport=10101\nchambers={chambers}\n')
+            assert subprocess.run([str(generic), '--config', str(config)],
+                                  capture_output=True, timeout=5).returncode != 0
         wrong_type = subprocess.run([str(build / 'SuFDeMonMUSICServer'), '--config',
                                      str(source / 'config/servers/SCIFI1.conf')],
                                     capture_output=True, timeout=5)
@@ -52,7 +61,7 @@ try:
             config.write_text(content)
             assert subprocess.run([str(generic), '--config', str(config)],
                                   capture_output=True, timeout=5).returncode != 0
-    print('PASS: 22 instances, ROOT protocol, histogram transfer, shutdown and invalid configs')
+    print('PASS: 19 instances, ROOT protocol, histogram transfer, shutdown and invalid configs')
 finally:
     for reservation in reservations:
         reservation.close()

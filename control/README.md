@@ -23,7 +23,7 @@ launched from another working directory. Existing `BUILD_DIR`, `CONFIG_DIR`,
 
 - Top row: **Start All**, **Stop All**, **Refresh Status**, and **Script Output**.
 - Second row: **MUSIC**, **PLSCI**, and **SCIFI** columns, containing respectively
-  2, 6, and 14 vertically stacked buttons from the configuration files.
+  2, 3, and 14 vertically stacked buttons from the configuration files.
 - Each column begins with **Start all** and **Stop all**, affecting only the
   configured servers in that detector group. Empty groups have disabled controls.
 - A green **Running---Stop** button stops that instance when clicked.

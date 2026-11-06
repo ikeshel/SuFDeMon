@@ -28,9 +28,12 @@ struct ServerConfig {
     // Advertised client hostname; the listening socket uses all local interfaces.
     std::string hostname = "localhost";
     int port = 10001;
+    // Optional comma-separated PLSCI chamber names, sharing this endpoint.
+    std::string chambers;
 };
 
 // A config file contains type, instance, hostname and port as key=value lines.
+// PLSCI may additionally specify comma-separated chambers.
 ServerConfig ReadServerConfig(const std::string& path);
 void ValidateServerConfig(const ServerConfig& config);
 int ParseServerPort(const std::string& text);

@@ -73,6 +73,7 @@ public:
 
 private:
     std::string SelectedHistogramName() const;
+    std::string SelectedDetectorInstance() const;
     void UpdateHistogramName();
     void UpdateServerIdentity(const std::string& info);
     void SetConnectedUi(bool connected);
@@ -125,7 +126,9 @@ private:
     std::vector<std::string> fServerTypes;
     std::vector<std::string> fServerInstances;
     std::vector<std::string> fServerHosts;
+    std::vector<std::vector<std::string>> fServerChambers;
     std::vector<int> fServerPorts;
+    std::vector<int> fServerChamberSelections;
     std::vector<int> fServerStates;
     std::vector<TGTextButton*> fServerButtons;
     std::array<std::vector<std::string>, 3> fMacroPaths;

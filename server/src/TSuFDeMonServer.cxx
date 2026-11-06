@@ -80,16 +80,24 @@ void TSuFDeMonServer::CreateHistograms()
         return;
     }
     const bool music = fConfig.type == SuFDeMon::DetectorType::MUSIC;
-    const int channels = fConfig.type == SuFDeMon::DetectorType::PLSCI
-        ? SuFDeMon::PlsciPmtCount(fConfig.instance.c_str()) : SuFDeMon::kNAdcChannels;
-    for (const std::string quantity : {"ADC", "TDC"}) {
-        for (int fc = music ? 1 : 0; fc <= (music ? SuFDeMon::kNFieldCages : 0); ++fc) {
-            for (int channel = 0; channel < channels; ++channel) {
-                const auto name = SuFDeMon::DetectorHistogramName(fConfig.instance, quantity, channel, fc);
-                const auto title = name + ";" + quantity + " [raw counts];Counts";
-                auto histogram = std::make_unique<TH1D>(name.c_str(), title.c_str(), 4096, 0.0, 4096.0);
-                histogram->SetDirectory(nullptr);
-                fHistograms.push_back(std::move(histogram));
+    std::vector<std::string> instances{fConfig.instance};
+    if (!fConfig.chambers.empty()) {
+        instances.clear();
+        for (const auto& chamber : SuFDeMon::PlsciChambers(fConfig.chambers))
+            instances.push_back(SuFDeMon::PlsciInstance(chamber));
+    }
+    for (const auto& instance : instances) {
+        const int channels = fConfig.type == SuFDeMon::DetectorType::PLSCI
+            ? SuFDeMon::PlsciPmtCount(instance.c_str()) : SuFDeMon::kNAdcChannels;
+        for (const std::string quantity : {"ADC", "TDC"}) {
+            for (int fc = music ? 1 : 0; fc <= (music ? SuFDeMon::kNFieldCages : 0); ++fc) {
+                for (int channel = 0; channel < channels; ++channel) {
+                    const auto name = SuFDeMon::DetectorHistogramName(instance, quantity, channel, fc);
+                    const auto title = name + ";" + quantity + " [raw counts];Counts";
+                    auto histogram = std::make_unique<TH1D>(name.c_str(), title.c_str(), 4096, 0.0, 4096.0);
+                    histogram->SetDirectory(nullptr);
+                    fHistograms.push_back(std::move(histogram));
+                }
             }
         }
     }
@@ -154,7 +162,8 @@ bool TSuFDeMonServer::HandleCommand(TSocket& socket, const std::string& command)
     if (command == SuFDeMon::Protocol::kInfo) {
         SendText(socket, std::string("type=") + SuFDeMon::DetectorTypeName(fConfig.type)
             + "\ninstance=" + fConfig.instance + "\nhostname=" + fConfig.hostname
-            + "\nport=" + std::to_string(fConfig.port) + "\n");
+            + "\nport=" + std::to_string(fConfig.port) + "\n"
+            + (fConfig.chambers.empty() ? "" : "chambers=" + fConfig.chambers + "\n"));
         return true;
     }
 

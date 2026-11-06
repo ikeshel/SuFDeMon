@@ -11,6 +11,7 @@
 // See the LICENSE file in the project root for the full license text.
 
 #include "TSuFDeMonGui.h"
+#include "SuFDeMonPlsciLayout.h"
 
 #include <TGButton.h>
 #include <TGComboBox.h>
@@ -39,6 +40,7 @@ struct ServerConfig
     std::string instance;
     std::string hostname;
     int port = 0;
+    std::vector<std::string> chambers;
 };
 
 std::string Trim(std::string value)
@@ -122,6 +124,7 @@ std::vector<ServerConfig> ReadServerConfigs()
             config.type = values["type"];
             config.instance = values["instance"];
             config.hostname = values["hostname"];
+            config.chambers = SuFDeMon::PlsciChambers(values["chambers"]);
 
             try {
                 config.port = std::stoi(values["port"]);
@@ -231,7 +234,9 @@ void TSuFDeMonGui::BuildServerConnectionsTab(TGCompositeFrame* tab)
         fServerTypes.push_back(config.type);
         fServerInstances.push_back(config.instance);
         fServerHosts.push_back(config.hostname);
+        fServerChambers.push_back(config.chambers);
         fServerPorts.push_back(config.port);
+        fServerChamberSelections.push_back(0);
         fServerStates.push_back(0);
         fServerClients.push_back(nullptr);
         auto* selector = fDetectorControls[DetectorOrder(config.type)].server;

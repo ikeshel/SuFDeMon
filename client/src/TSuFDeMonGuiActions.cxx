@@ -50,13 +50,24 @@ std::string InfoValue(const std::string& info, const std::string& key)
 }
 }
 
+std::string TSuFDeMonGui::SelectedDetectorInstance() const
+{
+    if (fConnectedDetectorType == "PLSCI" && fSelectedServer >= 0 && fFieldCageCombo) {
+        const auto& chambers = fServerChambers[fSelectedServer];
+        const int selected = fFieldCageCombo->GetSelected();
+        if (selected >= 0 && static_cast<std::size_t>(selected) < chambers.size())
+            return SuFDeMon::PlsciInstance(chambers[selected]);
+    }
+    return fConnectedInstance;
+}
+
 std::string TSuFDeMonGui::SelectedHistogramName() const
 {
     if (fConnectedDetectorType == "SCIFI")
         return SuFDeMon::ScifiHistogramName(fConnectedInstance,
             fQuantityCombo->GetSelected() == 1 ? "TDC" : "ToT");
     const auto name = SuFDeMon::DetectorHistogramName(
-        fConnectedInstance, fQuantityCombo->GetSelected() == 1 ? "TDC" : "ADC",
+        SelectedDetectorInstance(), fQuantityCombo->GetSelected() == 1 ? "TDC" : "ADC",
         fAdcCombo->GetSelected(),
         fConnectedDetectorType == "MUSIC" ? fFieldCageCombo->GetSelected() : 0);
     return (fLegacyHistogramPrefix.empty() || fQuantityCombo->GetSelected() == 1) ? name
@@ -84,7 +95,7 @@ void TSuFDeMonGui::UpdateServerIdentity(const std::string& info)
     }
     const int selected = fAdcCombo->GetSelected();
     const int channels = fConnectedDetectorType == "PLSCI"
-        ? SuFDeMon::PlsciPmtCount(fConnectedInstance.c_str()) : SuFDeMon::kNAdcChannels;
+        ? SuFDeMon::PlsciPmtCount(SelectedDetectorInstance().c_str()) : SuFDeMon::kNAdcChannels;
     fAdcCombo->RemoveEntries(0, SuFDeMon::kNAdcChannels - 1);
     for (int channel = 0; channel < channels; ++channel)
         fAdcCombo->AddEntry(("CH" + std::to_string(channel)).c_str(), channel);
@@ -119,6 +130,15 @@ void TSuFDeMonGui::SelectServer(Int_t index)
     ActivateDetectorControls(group);
     if (fTabs->GetCurrent() >= 1) fTabs->SetTab(group + 1, kFALSE);
     fSelectedServer = index;
+    if (group == 1 && fFieldCageCombo) {
+        const int previous = fServerChamberSelections[index];
+        fFieldCageCombo->RemoveAll();
+        const auto& chambers = fServerChambers[index];
+        for (std::size_t i = 0; i < chambers.size(); ++i)
+            fFieldCageCombo->AddEntry(chambers[i].c_str(), static_cast<Int_t>(i));
+        if (chambers.empty()) fFieldCageCombo->AddEntry(fServerInstances[index].c_str(), 0);
+        fFieldCageCombo->Select(previous >= 0 && static_cast<std::size_t>(previous) < chambers.size() ? previous : 0, kFALSE);
+    }
     fServerCombo->Select(index, kFALSE);
     fClient = fServerClients[index];
     fConnectedDetectorType = fServerTypes[index];
@@ -263,8 +283,10 @@ TH1* TSuFDeMonGui::FetchHistogram(const char* requestedName)
 
     for (std::size_t index = 0; index < fServerInstances.size(); ++index) {
         const std::string prefix = "h" + fServerInstances[index] + "_";
-        if (name.rfind(prefix, 0) != 0)
-            continue;
+        bool matches = name.rfind(prefix, 0) == 0 && fServerChambers[index].empty();
+        for (const auto& chamber : fServerChambers[index])
+            matches = matches || name.rfind("h" + SuFDeMon::PlsciInstance(chamber) + "_", 0) == 0;
+        if (!matches) continue;
 
         const auto& client = fServerClients[index];
         if (!client || !client->IsConnected()) {
@@ -384,7 +406,9 @@ void TSuFDeMonGui::DisplayGeneralStatus()
 
 void TSuFDeMonGui::SelectionChanged(Int_t)
 {
-    UpdateHistogramName();
+    if (fConnectedDetectorType == "PLSCI" && fSelectedServer >= 0 && fFieldCageCombo)
+        fServerChamberSelections[fSelectedServer] = fFieldCageCombo->GetSelected();
+    UpdateServerIdentity("");
 }
 
 void TSuFDeMonGui::FetchAndDraw()
